@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import datetime
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -13,7 +14,7 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc
 # ==========================================
 st.set_page_config(page_title="Dashboard Machine Learning", layout="wide", initial_sidebar_state="expanded")
 
-# CSS hanya dipertahankan untuk Kartu Angka (Metric Card) di atas, karena ini aman dari bug React.
+# CSS dipertahankan untuk Kartu Angka (Metric Card)
 st.markdown("""
     <style>
     .metric-card {
@@ -42,20 +43,23 @@ st.markdown("""
 # ==========================================
 # 2. SISTEM CACHE & PEMROSESAN DATA
 # ==========================================
+# Deteksi lokasi folder tempat app.py berada agar bisa dibaca oleh GitHub
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 @st.cache_data
 def load_analytics_data():
     data_dict = {}
     daftar_file = {
-        "Keseluruhan": "Overall Data.xlsx",
-        "2021": "2021.xlsx",
-        "2022": "2022.xlsx",
-        "2023": "2023.xlsx",
-        "2024": "2024.xlsx"
+        "Keseluruhan": os.path.join(BASE_DIR, "Overall Data.xlsx"),
+        "2021": os.path.join(BASE_DIR, "2021.xlsx"),
+        "2022": os.path.join(BASE_DIR, "2022.xlsx"),
+        "2023": os.path.join(BASE_DIR, "2023.xlsx"),
+        "2024": os.path.join(BASE_DIR, "2024.xlsx")
     }
     
-    for nama_periode, nama_file in daftar_file.items():
+    for nama_periode, path_file in daftar_file.items():
         try:
-            df = pd.read_excel(nama_file)
+            df = pd.read_excel(path_file)
             
             kolom_numerik = ['Age (Month)', 'Weight', 'Height']
             for col in kolom_numerik:
@@ -81,7 +85,8 @@ def load_analytics_data():
 
 @st.cache_resource
 def train_ml_model():
-    df = pd.read_excel('Preprocessed Data.xlsx')
+    path_ml = os.path.join(BASE_DIR, 'Preprocessed Data.xlsx')
+    df = pd.read_excel(path_ml)
     
     def selamatkan_berat_badan(val):
         if isinstance(val, datetime.datetime):
@@ -213,7 +218,6 @@ if menu == "Analisis Data Deskriptif":
         with col_text:
             st.markdown("### Kesimpulan & Interpretasi")
             
-            # MENGGUNAKAN NATIVE STREAMLIT MARKDOWN
             narasi = f"Berdasarkan parameter penyaringan untuk **{filter_gender}** pada rentang usia **{rentang_umur[0]} - {rentang_umur[1]} bulan** di periode **{filter_tahun}**, komputasi mencatat sebanyak **{total_stunting:,} observasi** (dari total {total_data:,} sampel) terindikasi sebagai perlambatan laju pertumbuhan (Stunted)."
             
             if persen_stunting > 30:
@@ -234,6 +238,57 @@ elif menu == "Prediksi Machine Learning":
     
     st.divider()
     
+    # ---------------------------------------------------------
+    # DIPINDAHKAN KE ATAS: EVALUASI KINERJA ARSITEKTUR MODEL
+    # ---------------------------------------------------------
+    st.markdown("### Evaluasi Kinerja Arsitektur Model")
+    
+    st.info(f"""
+    **Asal Usul Metrik Pengujian (Metode Train-Test Split):**
+    
+    Sesuai dengan dataset Stunting dan Status Gizi Balita dari Kabupaten Jeneponto, arsitektur ini memproses populasi komprehensif sebanyak **{eval_data['total_bersih']:,} observasi**. Untuk mencegah *overfitting*, data dipecah secara proporsional:
+    
+    1. **80% Training Set:** Dimanfaatkan secara eksklusif oleh algoritma untuk mengekstraksi koefisien dan pola matematis.
+    2. **20% Testing Set ({eval_data['total_uji']:,} sampel):** Data empiris yang diisolasi khusus untuk menantang tingkat akurasi tebakan model. Hasil evaluasi objektif pada set pengujian inilah yang divisualisasikan pada instrumen **Confusion Matrix** dan **Kurva ROC** di bawah ini.
+    """)
+    
+    eval_col1, eval_col2 = st.columns(2)
+    with eval_col1:
+        cm = confusion_matrix(eval_data['y_test'], eval_data['y_pred'])
+        fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale='Blues',
+                           labels=dict(x="Prediksi Algoritma", y="Data Aktual", color="Frekuensi Pengamatan"),
+                           x=['Not Stunted (0)', 'Stunted (1)'], y=['Not Stunted (0)', 'Stunted (1)'],
+                           title="Confusion Matrix")
+        fig_cm.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+        st.plotly_chart(fig_cm, use_container_width=True)
+        
+    with eval_col2:
+        fpr, tpr, _ = roc_curve(eval_data['y_test'], eval_data['y_pred_proba'])
+        roc_auc = auc(fpr, tpr)
+        
+        fig_roc = go.Figure()
+        fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'Kurva ROC (AUC = {roc_auc:.4f})', line=dict(color='darkorange', width=3)))
+        fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Garis Ambang Dasar', line=dict(color='navy', width=2, dash='dash')))
+        fig_roc.update_layout(title='Receiver Operating Characteristic (ROC)', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate',
+                              plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+        st.plotly_chart(fig_roc, use_container_width=True)
+        
+    st.success(f"""
+    **Interpretasi Confusion Matrix & ROC:**
+    
+    Berdasarkan pengujian terhadap **{eval_data['total_uji']:,} sampel uji**, matriks evaluasi menghasilkan pemetaan yang sangat akurat:
+    *   **True Negative (Kiri Atas):** Model berhasil mendeteksi secara presisi sebagian besar populasi balita yang memang berstatus "Not Stunted".
+    *   **True Positive (Kanan Bawah):** Model sukses melakukan klasifikasi yang tepat pada balita dengan kondisi aktual "Stunted".
+    *   **False Positive & False Negative:** Hanya terdapat persentase kesalahan klasifikasi yang sangat minim pada kuadran Kanan Atas dan Kiri Bawah, membuktikan rasio presisi dan sensitivitas (Recall) algoritma yang tinggi.
+    
+    Lebih lanjut, nilai **AUC (Area Under Curve) sebesar {roc_auc:.2f}** pada kurva ROC mengonfirmasi kemampuan separasi model yang superior. Semakin mendekati angka 1.0, semakin cerdas model dalam membedakan entitas kelas positif (Stunted) dan kelas negatif (Not Stunted).
+    """)
+
+    st.divider()
+
+    # ---------------------------------------------------------
+    # DIPINDAHKAN KE BAWAH: KALKULATOR PROBABILITAS
+    # ---------------------------------------------------------
     st.markdown("### Kalkulator Probabilitas Sigmoid")
     with st.form("form_prediksi"):
         col1, col2 = st.columns(2)
@@ -275,58 +330,10 @@ elif menu == "Prediksi Machine Learning":
             
         with res_col2:
             st.write("\n\n")
-            # MENGGUNAKAN NATIVE STREAMLIT ALERT
             if pred_class == 1:
                 st.error(f"**KEPUTUSAN KELAS: 1 (Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nBerdasarkan kalkulasi fungsi aktivasi terhadap koefisien fitur pembentuk model, proyeksi melampaui **ambang batas probabilistik (threshold > 50%)**. Dalam evaluasi analitis, profil vektor dimensi ini mengonfirmasi presensi pola Stunted.")
             else:
                 st.success(f"**KEPUTUSAN KELAS: 0 (Not Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nKomputasi fungsi aktivasi linier memetakan proyeksi probabilitas pada kurva bawah **(threshold < 50%)**. Berdasarkan model Logistic Regression, susunan metrik input ini ekuivalen dengan matriks kelas Not Stunted.")
-
-    st.divider()
-    
-    st.markdown("### Evaluasi Kinerja Arsitektur Model")
-    
-    # MENGGUNAKAN NATIVE STREAMLIT INFO (Bebas Error React DOM)
-    st.info(f"""
-    **Asal Usul Metrik Pengujian (Metode Train-Test Split):**
-    
-    Sesuai dengan dataset Stunting dan Status Gizi Balita dari Kabupaten Jeneponto, arsitektur ini memproses populasi komprehensif sebanyak **{eval_data['total_bersih']:,} observasi**. Untuk mencegah *overfitting*, data dipecah secara proporsional:
-    
-    1. **80% Training Set:** Dimanfaatkan secara eksklusif oleh algoritma untuk mengekstraksi koefisien dan pola matematis.
-    2. **20% Testing Set ({eval_data['total_uji']:,} sampel):** Data empiris yang diisolasi khusus untuk menantang tingkat akurasi tebakan model. Hasil evaluasi objektif pada set pengujian inilah yang divisualisasikan pada instrumen **Confusion Matrix** dan **Kurva ROC** di bawah ini.
-    """)
-    
-    eval_col1, eval_col2 = st.columns(2)
-    with eval_col1:
-        cm = confusion_matrix(eval_data['y_test'], eval_data['y_pred'])
-        fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale='Blues',
-                           labels=dict(x="Prediksi Algoritma", y="Data Aktual", color="Frekuensi Pengamatan"),
-                           x=['Not Stunted (0)', 'Stunted (1)'], y=['Not Stunted (0)', 'Stunted (1)'],
-                           title="Confusion Matrix")
-        fig_cm.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
-        st.plotly_chart(fig_cm, use_container_width=True)
-        
-    with eval_col2:
-        fpr, tpr, _ = roc_curve(eval_data['y_test'], eval_data['y_pred_proba'])
-        roc_auc = auc(fpr, tpr)
-        
-        fig_roc = go.Figure()
-        fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'Kurva ROC (AUC = {roc_auc:.4f})', line=dict(color='darkorange', width=3)))
-        fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Garis Ambang Dasar', line=dict(color='navy', width=2, dash='dash')))
-        fig_roc.update_layout(title='Receiver Operating Characteristic (ROC)', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate',
-                              plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
-        st.plotly_chart(fig_roc, use_container_width=True)
-        
-    # MENGGUNAKAN NATIVE STREAMLIT SUCCESS
-    st.success(f"""
-    **Interpretasi Confusion Matrix & ROC:**
-    
-    Berdasarkan pengujian terhadap **{eval_data['total_uji']:,} sampel uji**, matriks evaluasi menghasilkan pemetaan yang sangat akurat:
-    *   **True Negative (Kiri Atas):** Model berhasil mendeteksi secara presisi sebagian besar populasi balita yang memang berstatus "Not Stunted".
-    *   **True Positive (Kanan Bawah):** Model sukses melakukan klasifikasi yang tepat pada balita dengan kondisi aktual "Stunted".
-    *   **False Positive & False Negative:** Hanya terdapat persentase kesalahan klasifikasi yang sangat minim pada kuadran Kanan Atas dan Kiri Bawah, membuktikan rasio presisi dan sensitivitas (Recall) algoritma yang tinggi.
-    
-    Lebih lanjut, nilai **AUC (Area Under Curve) sebesar {roc_auc:.2f}** pada kurva ROC mengonfirmasi kemampuan separasi model yang superior. Semakin mendekati angka 1.0, semakin cerdas model dalam membedakan entitas kelas positif (Stunted) dan kelas negatif (Not Stunted).
-    """)
 
 # Footer
 st.sidebar.divider()
