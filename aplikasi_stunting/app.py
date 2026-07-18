@@ -147,7 +147,7 @@ st.sidebar.title("Navigasi Dashboard")
 menu = st.sidebar.radio("Pilih Modul Analisis", [
     "Analisis Data Deskriptif", 
     "Prediksi Machine Learning",
-    "Analisis Regresi Dinamis" 
+    "Upload & Uji Data Anda" 
 ])
 st.sidebar.divider()
 st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balita Kabupaten Jeneponto menggunakan komputasi statistik dan algoritma Logistic Regression.")
@@ -156,10 +156,14 @@ st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balit
 # 4. HALAMAN 1: ANALISIS DESKRIPTIF
 # ==========================================
 if menu == "Analisis Data Deskriptif":
-    st.title("Analisis Tren dan Sebaran Data Visual")
-    st.write("Silakan atur parameter di bawah ini. Dasbor akan secara otomatis melakukan kalkulasi ulang pada matriks visualisasi.")
+    st.title("Dataset Stunting dan Status Gizi Balita Kabupaten Jeneponto")
+    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang **40.071 balita (usia 0-59 bulan)** dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024.")
+    
+    st.info("**Deklarasi Sumber Data Publik**\n\nData yang disajikan pada sistem ini diambil dari repositori publik dan resmi untuk keperluan penelitian akademis. Anda dapat memverifikasi keabsahan data, struktur variabel, dan profil geografis secara langsung melalui tautan berikut: [Mendeley Data - Dataset Stunting Jeneponto](https://data.mendeley.com/datasets/wzwpc9j5bx/4)")
     
     st.divider()
+    st.write("Silakan atur instrumen filter di bawah ini untuk melihat pemetaan tren data secara spesifik.")
+    
     col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
     with col_f1:
         filter_tahun = st.selectbox("Periode Tahun", ["Keseluruhan", "2021", "2022", "2023", "2024"])
@@ -316,10 +320,10 @@ elif menu == "Prediksi Machine Learning":
 # ==========================================
 # 6. HALAMAN 3: ANALISIS REGRESI DINAMIS
 # ==========================================
-elif menu == "Analisis Regresi Dinamis":
-    st.title("Modul Komputasi Regresi Logistik Dinamis")
+elif menu == "Upload & Uji Data Anda":
+    st.title("Upload dan Analisis Data Mandiri")
     
-    st.markdown("Modul ini dirancang agar Anda dapat menguji dataset kustom menggunakan algoritma Regresi Logistik secara mandiri. Secara fundamental, mesin ini dapat digunakan untuk menganalisis berbagai kasus klasifikasi biner, tidak terbatas hanya pada deteksi status gizi.")
+    st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin akan membaca struktur data Anda dan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih secara independen.")
     
     st.divider()
     
@@ -363,7 +367,6 @@ elif menu == "Analisis Regresi Dinamis":
             st.success("File berhasil dibaca oleh sistem. Berikut adalah cuplikan data Anda")
             st.dataframe(df_user.head(), use_container_width=True)
             
-            # FITUR BARU: Deskripsi Statistik
             st.markdown("### Deskripsi Statistik Data")
             st.write("Tabel di bawah ini menampilkan ringkasan kalkulasi statistik (jumlah, rata-rata, nilai minimum, dan maksimum) dari seluruh kolom numerik pada dataset Anda.")
             st.dataframe(df_user.describe(), use_container_width=True)
@@ -394,7 +397,7 @@ elif menu == "Analisis Regresi Dinamis":
                     
                     target_unik = df_model[target_y].unique()
                     if len(target_unik) != 2:
-                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data bersih.")
+                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data.")
                     else:
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
