@@ -321,9 +321,39 @@ elif menu == "Prediksi Machine Learning":
 # ==========================================
 elif menu == "Analisis Regresi Dinamis":
     st.title("Modul Komputasi Regresi Logistik Dinamis")
-    st.write("Unggah dataset Anda dalam format Excel atau CSV. Anda memiliki kontrol penuh untuk menentukan variabel mana yang akan diuji dan diprediksi oleh algoritma.")
     
-    uploaded_file = st.file_uploader("Seret dan lepaskan file Excel/CSV di sini", type=['xlsx', 'csv'])
+    # 1. Narasi Penjelasan Modul
+    st.markdown("Modul ini dirancang agar Anda dapat menguji dataset kustom menggunakan algoritma Regresi Logistik secara mandiri. Meskipun aplikasi ini berfokus pada deteksi gizi, algoritma ini secara fundamental dapat digunakan untuk menganalisis dan memprediksi kasus **Klasifikasi Biner** lainnya (contoh: mendeteksi email Spam/Bukan Spam, Kredit Diterima/Ditolak, atau Pelanggan Berhenti/Bertahan).")
+    
+    st.divider()
+    
+    # 2. Petunjuk Aturan Data
+    st.markdown("### Panduan Persiapan Data")
+    st.info("""
+    Sebelum mengunggah file, pastikan data Anda memenuhi dua kriteria utama komputasi mesin berikut:
+    
+    1. **Variabel Target (y) Harus Biner:** Kolom yang ingin Anda prediksi hanya boleh berisi **dua kategori unik**. (Contoh: 0 dan 1, "Ya" dan "Tidak", atau "Positif" dan "Negatif"). Mesin tidak dapat memproses target dengan tiga klasifikasi atau lebih.
+    2. **Variabel Fitur (X) Harus Numerik:** Kolom yang dijadikan faktor penyebab (prediktor) wajib berisi angka. Jika Anda memiliki data teks (kategorikal), ubah terlebih dahulu menjadi angka pada Excel Anda.
+    """)
+    
+    # 3. Pratinjau (Preview) Template Data Ideal
+    st.markdown("#### Pratinjau Format Data Ideal")
+    st.write("Di bawah ini adalah contoh struktur data yang siap dibaca oleh algoritma. Perhatikan bahwa variabel prediktor (Usia, Berat, Tinggi) berupa angka, dan target kelas (Status) hanya memiliki dua variasi (1 atau 0).")
+    
+    contoh_data_dinamis = pd.DataFrame({
+        "Usia_Bulan": [24, 36, 12, 48, 60],
+        "Berat_Badan_Kg": [10.5, 14.2, 8.0, 16.5, 19.0],
+        "Tinggi_Badan_Cm": [85.0, 95.5, 72.0, 105.0, 110.0],
+        "Status_Kelas_Target": [1, 0, 1, 0, 0]
+    })
+    
+    st.dataframe(contoh_data_dinamis, use_container_width=True, hide_index=True)
+    
+    st.divider()
+    
+    # 4. Area Upload File
+    st.markdown("### Unggah Dataset Anda")
+    uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV di sini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
         try:
@@ -332,12 +362,12 @@ elif menu == "Analisis Regresi Dinamis":
             else:
                 df_user = pd.read_excel(uploaded_file)
                 
-            st.success("File berhasil dimuat! Berikut adalah cuplikan data Anda:")
+            st.success("File berhasil dimuat. Berikut adalah cuplikan data Anda:")
             st.dataframe(df_user.head(), use_container_width=True)
             
             st.divider()
             st.markdown("### Konfigurasi Variabel Algoritma")
-            st.info("Pilih kolom yang tepat dari dataset Anda. Pastikan variabel fitur (X) berisi angka numerik dan variabel target (y) hanya memiliki dua kemungkinan hasil (biner).")
+            st.write("Tentukan kolom mana yang akan dijadikan faktor penyebab (Fitur) dan kolom mana yang menjadi hasil prediksi (Target).")
             
             kolom_tersedia = df_user.columns.tolist()
             
@@ -363,7 +393,7 @@ elif menu == "Analisis Regresi Dinamis":
                     # Konversi target ke biner jika belum berupa angka 0 dan 1
                     target_unik = df_model[target_y].unique()
                     if len(target_unik) != 2:
-                        st.error(f"Variabel target '{target_y}' harus berupa kelas biner (hanya berisi dua nilai unik). Saat ini terdapat {len(target_unik)} nilai unik.")
+                        st.error(f"Variabel target '{target_y}' harus berupa kelas biner (hanya berisi dua nilai unik). Saat ini terdapat {len(target_unik)} nilai unik pada data bersih.")
                     else:
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
@@ -385,7 +415,7 @@ elif menu == "Analisis Regresi Dinamis":
                         
                         st.divider()
                         st.markdown("### Hasil Evaluasi Model Dinamis")
-                        st.write(f"Model dilatih menggunakan **{len(df_model):,} baris data bersih** setelah menghapus baris yang kosong.")
+                        st.write(f"Model berhasil dilatih menggunakan **{len(df_model):,} baris data bersih** setelah mengeleminasi sel yang kosong.")
                         
                         eval_col1, eval_col2 = st.columns(2)
                         with eval_col1:
@@ -408,7 +438,7 @@ elif menu == "Analisis Regresi Dinamis":
                             st.plotly_chart(fig_roc_dyn, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan saat memproses data. Detail: {e}")
+            st.error(f"Terjadi kesalahan teknis saat memproses data unggahan. Detail: {e}")
 
 # Footer
 st.sidebar.divider()
