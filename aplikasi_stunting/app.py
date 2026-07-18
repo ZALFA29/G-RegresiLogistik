@@ -84,7 +84,6 @@ def train_ml_model():
     try:
         df = pd.read_excel(path_ml)
     except Exception:
-        # Menghindari error mematikan jika file belum ada
         return None, None, None
 
     def selamatkan_berat_badan(val):
@@ -148,7 +147,7 @@ st.sidebar.title("Navigasi Dashboard")
 menu = st.sidebar.radio("Pilih Modul Analisis:", [
     "Analisis Data Deskriptif", 
     "Prediksi Machine Learning",
-    "Upload Data Kustom" # Menu Baru Ditambahkan
+    "Analisis Regresi Dinamis" 
 ])
 st.sidebar.divider()
 st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balita Kabupaten Jeneponto menggunakan komputasi statistik dan algoritma Logistic Regression.")
@@ -163,9 +162,9 @@ if menu == "Analisis Data Deskriptif":
     st.divider()
     col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
     with col_f1:
-        filter_tahun = st.selectbox("Periode Tahun:", ["Keseluruhan", "2021", "2022", "2023", "2024"], help="Pilih 'Keseluruhan' untuk melihat akumulasi data.")
+        filter_tahun = st.selectbox("Periode Tahun:", ["Keseluruhan", "2021", "2022", "2023", "2024"])
     with col_f2:
-        filter_gender = st.selectbox("Klasifikasi Gender:", ["Semua Populasi", "Laki-laki", "Perempuan"], help="Saring data berdasarkan jenis kelamin spesifik.")
+        filter_gender = st.selectbox("Klasifikasi Gender:", ["Semua Populasi", "Laki-laki", "Perempuan"])
     with col_f3:
         df_aktif = df_analytics_dict.get(filter_tahun, pd.DataFrame())
         min_age, max_age = 0, 60
@@ -190,11 +189,11 @@ if menu == "Analisis Data Deskriptif":
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f'<div class="metric-card" title="Jumlah total data pengamatan yang relevan."><div class="metric-value">{total_data:,}</div><div class="metric-label">TOTAL PENGAMATAN (SAMPEL)</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><div class="metric-value">{total_data:,}</div><div class="metric-label">TOTAL PENGAMATAN (SAMPEL)</div></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="metric-card-alert" title="Jumlah aktual data observasi yang masuk ke dalam kelas Stunted."><div class="metric-value" style="color:#FF5252;">{total_stunting:,}</div><div class="metric-label">TERKLASIFIKASI STUNTED</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card-alert"><div class="metric-value" style="color:#FF5252;">{total_stunting:,}</div><div class="metric-label">TERKLASIFIKASI STUNTED</div></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown(f'<div class="metric-card-alert" style="border-left-color: #FFC107;" title="Rasio persentase observasi berstatus Stunted."><div class="metric-value" style="color:#FFC107;">{persen_stunting:.1f}%</div><div class="metric-label">PERSENTASE PREVALENSI</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card-alert" style="border-left-color: #FFC107;"><div class="metric-value" style="color:#FFC107;">{persen_stunting:.1f}%</div><div class="metric-label">PERSENTASE PREVALENSI</div></div>', unsafe_allow_html=True)
     
     st.divider()
     
@@ -313,96 +312,103 @@ elif menu == "Prediksi Machine Learning":
             with res_col2:
                 st.write("\n\n")
                 if pred_class == 1:
-                    st.error(f"**KEPUTUSAN KELAS: 1 (Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nBerdasarkan kalkulasi, proyeksi melampaui ambang batas probabilistik (threshold > 50%). Konfirmasi presensi pola Stunted.")
+                    st.error(f"**KEPUTUSAN KELAS: 1 (Positif) | Probabilitas: {pred_proba:.1f}%**\n\nBerdasarkan kalkulasi, proyeksi melampaui ambang batas probabilistik (threshold > 50%).")
                 else:
-                    st.success(f"**KEPUTUSAN KELAS: 0 (Not Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nKomputasi probabilitas pada kurva bawah (threshold < 50%). Ekuivalen dengan matriks kelas Not Stunted.")
+                    st.success(f"**KEPUTUSAN KELAS: 0 (Negatif) | Probabilitas: {pred_proba:.1f}%**\n\nKomputasi probabilitas pada kurva bawah (threshold < 50%).")
 
 # ==========================================
-# 6. HALAMAN 3: UPLOAD & ANALISIS MANDIRI
+# 6. HALAMAN 3: ANALISIS REGRESI DINAMIS
 # ==========================================
-elif menu == "Upload Data Kustom":
-    st.title("Upload & Analisis Data Mandiri")
-    st.write("Unggah dataset riwayat kesehatan balita milik Anda. Sistem akan memproses dan memvisualisasikan tren secara otomatis.")
+elif menu == "Analisis Regresi Dinamis":
+    st.title("Modul Komputasi Regresi Logistik Dinamis")
+    st.write("Unggah dataset Anda dalam format Excel atau CSV. Anda memiliki kontrol penuh untuk menentukan variabel mana yang akan diuji dan diprediksi oleh algoritma.")
     
-    st.markdown("### 📋 Panduan Format Data")
-    st.info("Agar mesin dapat membaca data Anda dengan akurat, pastikan file memiliki **minimal 5 kolom utama** dengan penamaan bahasa Inggris (huruf kapital di awal) seperti contoh tabel di bawah ini. File didukung dalam format **.xlsx** atau **.csv**.")
-    
-    # Membuat tabel contoh (Dummy Data) agar pengguna tahu format yang benar
-    contoh_df = pd.DataFrame({
-        "Gender": ["F", "M", "M", "F", "M"],
-        "Age (Month)": [54, 44, 24, 12, 36],
-        "Weight": [13.2, 12.0, 9.5, 7.5, 11.2],
-        "Height": [97.5, 92.0, 80.5, 70.0, 89.0],
-        "Height for Age": ["Stunted", "Stunted", "Normal", "Normal", "Stunted"]
-    })
-    
-    st.dataframe(contoh_df, use_container_width=True, hide_index=True)
-    
-    st.divider()
-    
-    st.markdown("### 📤 Modul Unggah File")
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel/CSV di sini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
         try:
-            # Membaca format berdasarkan ekstensi
             if uploaded_file.name.endswith('.csv'):
                 df_user = pd.read_csv(uploaded_file)
             else:
                 df_user = pd.read_excel(uploaded_file)
                 
-            # Validasi nama kolom wajib
-            kolom_wajib = ['Gender', 'Age (Month)', 'Weight', 'Height', 'Height for Age']
-            kolom_hilang = [k untuk k in kolom_wajib jika k tidak ada di df_user.columns]
+            st.success("File berhasil dimuat! Berikut adalah cuplikan data Anda:")
+            st.dataframe(df_user.head(), use_container_width=True)
             
-            if kolom_hilang:
-                st.error(f"**Validasi Gagal:** Sistem tidak menemukan kolom berikut di data Anda: {kolom_hilang}. Silakan perbaiki nama kolom pada file Anda agar sesuai dengan tabel panduan di atas.")
-            else:
-                st.success(f"File **{uploaded_file.name}** berhasil diproses! Sebanyak {len(df_user):,} baris data terdeteksi.")
+            st.divider()
+            st.markdown("### Konfigurasi Variabel Algoritma")
+            st.info("Pilih kolom yang tepat dari dataset Anda. Pastikan variabel fitur (X) berisi angka numerik dan variabel target (y) hanya memiliki dua kemungkinan hasil (biner).")
+            
+            kolom_tersedia = df_user.columns.tolist()
+            
+            col_target, col_fitur = st.columns([1, 2])
+            with col_target:
+                target_y = st.selectbox("Pilih Variabel Target (y):", kolom_tersedia)
+            with col_fitur:
+                pilihan_fitur = [k for k in kolom_tersedia if k != target_y]
+                fitur_x = st.multiselect("Pilih Variabel Fitur (X):", pilihan_fitur)
                 
-                # Proses Pembersihan Data Sama Seperti Dashboard Utama
-                for col in ['Age (Month)', 'Weight', 'Height']:
-                    df_user[col] = pd.to_numeric(df_user[col], errors='coerce')
-                
-                def tentukan_gender_kustom(x):
-                    val = str(x).strip().upper()
-                    if val in ['M', '1', '1.0', 'L', 'LAKI-LAKI']:
-                        return 'Laki-laki'
-                    return 'Perempuan'
-                df_user['Gender_Label'] = df_user['Gender'].apply(tentukan_gender_kustom)
-                df_user['Status'] = df_user['Height for Age'].astype(str).str.strip().str.title()
-                
-                # Menampilkan Kalkulasi Metrik (KPI)
-                total_data_kustom = len(df_user)
-                total_stunting_kustom = len(df_user[df_user['Status'] == 'Stunted'])
-                persen_stunting_kustom = (total_stunting_kustom / total_data_kustom) * 100 if total_data_kustom > 0 else 0
-                
-                st.divider()
-                st.markdown("###  Ringkasan Visualisasi Data Anda")
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.markdown(f'<div class="metric-card"><div class="metric-value">{total_data_kustom:,}</div><div class="metric-label">TOTAL DATA ANDA</div></div>', unsafe_allow_html=True)
-                with col2:
-                    st.markdown(f'<div class="metric-card-alert"><div class="metric-value" style="color:#FF5252;">{total_stunting_kustom:,}</div><div class="metric-label">TERKLASIFIKASI STUNTED</div></div>', unsafe_allow_html=True)
-                with col3:
-                    st.markdown(f'<div class="metric-card-alert" style="border-left-color: #FFC107;"><div class="metric-value" style="color:#FFC107;">{persen_stunting_kustom:.1f}%</div><div class="metric-label">PERSENTASE PREVALENSI</div></div>', unsafe_allow_html=True)
-                
-                st.write("\n")
-                
-                col_c1, col_c2 = st.columns(2)
-                with col_c1:
-                    fig_pie_user = px.pie(df_user, names='Status', title='Proporsi Status Stunting Data Unggahan', color='Status', color_discrete_map={'Not Stunted':'#4CAF50', 'Stunted':'#FF5252', 'Normal':'#4CAF50'}, hole=0.5)
-                    fig_pie_user.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
-                    st.plotly_chart(fig_pie_user, use_container_width=True)
+            if st.button("Latih Model Sekarang"):
+                if not fitur_x:
+                    st.error("Silakan pilih minimal satu variabel fitur (X) sebelum melatih model.")
+                else:
+                    df_model = df_user[fitur_x + [target_y]].copy()
                     
-                with col_c2:
-                    fig_hist_user = px.histogram(df_user, x='Age (Month)', color='Status', barmode='group', title='Distribusi Usia Berdasarkan Kelas', color_discrete_map={'Not Stunted':'#4CAF50', 'Stunted':'#FF5252', 'Normal':'#4CAF50'})
-                    fig_hist_user.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
-                    st.plotly_chart(fig_hist_user, use_container_width=True)
+                    # Konversi fitur ke numerik
+                    for col in fitur_x:
+                        df_model[col] = pd.to_numeric(df_model[col], errors='coerce')
+                    
+                    df_model = df_model.dropna()
+                    
+                    # Konversi target ke biner jika belum berupa angka 0 dan 1
+                    target_unik = df_model[target_y].unique()
+                    if len(target_unik) != 2:
+                        st.error(f"Variabel target '{target_y}' harus berupa kelas biner (hanya berisi dua nilai unik). Saat ini terdapat {len(target_unik)} nilai unik.")
+                    else:
+                        if not pd.api.types.is_numeric_dtype(df_model[target_y]):
+                            df_model[target_y] = pd.Categorical(df_model[target_y]).codes
+                            
+                        X_dyn = df_model[fitur_x]
+                        y_dyn = df_model[target_y]
+                        
+                        X_train_dyn, X_test_dyn, y_train_dyn, y_test_dyn = train_test_split(X_dyn, y_dyn, test_size=0.2, random_state=42)
+                        
+                        scaler_dyn = StandardScaler()
+                        X_train_scaled_dyn = scaler_dyn.fit_transform(X_train_dyn)
+                        X_test_scaled_dyn = scaler_dyn.transform(X_test_dyn)
+                        
+                        model_dyn = LogisticRegression(penalty='l1', solver='liblinear', random_state=42, max_iter=1000)
+                        model_dyn.fit(X_train_scaled_dyn, y_train_dyn)
+                        
+                        y_pred_dyn = model_dyn.predict(X_test_scaled_dyn)
+                        y_pred_proba_dyn = model_dyn.predict_proba(X_test_scaled_dyn)[:, 1]
+                        
+                        st.divider()
+                        st.markdown("### Hasil Evaluasi Model Dinamis")
+                        st.write(f"Model dilatih menggunakan **{len(df_model):,} baris data bersih** setelah menghapus baris yang kosong.")
+                        
+                        eval_col1, eval_col2 = st.columns(2)
+                        with eval_col1:
+                            cm_dyn = confusion_matrix(y_test_dyn, y_pred_dyn)
+                            fig_cm_dyn = px.imshow(cm_dyn, text_auto=True, color_continuous_scale='Blues',
+                                               labels=dict(x="Prediksi", y="Aktual", color="Frekuensi"),
+                                               title="Confusion Matrix")
+                            fig_cm_dyn.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                            st.plotly_chart(fig_cm_dyn, use_container_width=True)
+                            
+                        with eval_col2:
+                            fpr_dyn, tpr_dyn, _ = roc_curve(y_test_dyn, y_pred_proba_dyn)
+                            roc_auc_dyn = auc(fpr_dyn, tpr_dyn)
+                            
+                            fig_roc_dyn = go.Figure()
+                            fig_roc_dyn.add_trace(go.Scatter(x=fpr_dyn, y=tpr_dyn, mode='lines', name=f'AUC = {roc_auc_dyn:.4f}', line=dict(color='darkorange', width=3)))
+                            fig_roc_dyn.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Ambang Dasar', line=dict(color='navy', width=2, dash='dash')))
+                            fig_roc_dyn.update_layout(title='Kurva ROC', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate',
+                                                  plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                            st.plotly_chart(fig_roc_dyn, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan saat membaca file. Pastikan file tidak rusak atau di-password. Detail: {e}")
+            st.error(f"Terjadi kesalahan saat memproses data. Detail: {e}")
 
 # Footer
 st.sidebar.divider()
