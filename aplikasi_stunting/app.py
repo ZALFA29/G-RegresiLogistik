@@ -144,7 +144,7 @@ model_ml, scaler_ml, eval_data = train_ml_model()
 # 3. NAVIGASI SIDEBAR
 # ==========================================
 st.sidebar.title("Navigasi Dashboard")
-menu = st.sidebar.radio("Pilih Modul Analisis:", [
+menu = st.sidebar.radio("Pilih Modul Analisis", [
     "Analisis Data Deskriptif", 
     "Prediksi Machine Learning",
     "Analisis Regresi Dinamis" 
@@ -162,16 +162,16 @@ if menu == "Analisis Data Deskriptif":
     st.divider()
     col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
     with col_f1:
-        filter_tahun = st.selectbox("Periode Tahun:", ["Keseluruhan", "2021", "2022", "2023", "2024"])
+        filter_tahun = st.selectbox("Periode Tahun", ["Keseluruhan", "2021", "2022", "2023", "2024"])
     with col_f2:
-        filter_gender = st.selectbox("Klasifikasi Gender:", ["Semua Populasi", "Laki-laki", "Perempuan"])
+        filter_gender = st.selectbox("Klasifikasi Gender", ["Semua Populasi", "Laki-laki", "Perempuan"])
     with col_f3:
         df_aktif = df_analytics_dict.get(filter_tahun, pd.DataFrame())
         min_age, max_age = 0, 60
         if not df_aktif.empty and pd.notna(df_aktif['Age (Month)'].min()):
             min_age = int(df_aktif['Age (Month)'].min())
             max_age = int(df_aktif['Age (Month)'].max())
-        rentang_umur = st.slider("Rentang Usia (Bulan):", min_value=min_age, max_value=max_age, value=(min_age, max_age))
+        rentang_umur = st.slider("Rentang Usia (Bulan)", min_value=min_age, max_value=max_age, value=(min_age, max_age))
     
     if not df_aktif.empty:
         df_filtered = df_aktif[(df_aktif['Age (Month)'] >= rentang_umur[0]) & (df_aktif['Age (Month)'] <= rentang_umur[1])]
@@ -222,11 +222,11 @@ if menu == "Analisis Data Deskriptif":
             narasi = f"Berdasarkan parameter penyaringan untuk **{filter_gender}** pada rentang usia **{rentang_umur[0]} - {rentang_umur[1]} bulan** di periode **{filter_tahun}**, komputasi mencatat sebanyak **{total_stunting:,} observasi** (dari total {total_data:,} sampel) terindikasi sebagai perlambatan laju pertumbuhan (Stunted)."
             
             if persen_stunting > 30:
-                st.error(f"{narasi}\n\n**Perhatian Tinggi:** Prevalensi menembus skala >30%. Data ini mengindikasikan urgensi distribusi nutrisi dan tindakan korektif.")
+                st.error(f"{narasi}\n\nPerhatian Tinggi. Prevalensi menembus skala >30%. Data ini mengindikasikan urgensi distribusi nutrisi dan tindakan korektif.")
             elif persen_stunting > 15:
-                st.warning(f"{narasi}\n\n**Perhatian Moderat:** Tingkat prevalensi berada pada spektrum pengawasan.")
+                st.warning(f"{narasi}\n\nPerhatian Moderat. Tingkat prevalensi berada pada spektrum pengawasan.")
             else:
-                st.success(f"{narasi}\n\n**Tingkat prevalensi pada batas wajar**, menandakan proporsi indikator pertumbuhan berjalan konstan di dalam batas sampel yang diukur.")
+                st.success(f"{narasi}\n\nTingkat prevalensi pada batas wajar, menandakan proporsi indikator pertumbuhan berjalan konstan di dalam batas sampel yang diukur.")
     else:
         st.warning("Data komputasi belum tersedia atau bernilai nol untuk instrumen filter yang dipilih.")
 
@@ -243,10 +243,7 @@ elif menu == "Prediksi Machine Learning":
         st.divider()
         st.markdown("### Evaluasi Kinerja Arsitektur Model")
         
-        st.info(f"""
-        **Asal Usul Metrik Pengujian (Metode Train-Test Split):**
-        Sesuai dengan dataset Stunting dan Status Gizi Balita dari Kabupaten Jeneponto, arsitektur ini memproses populasi komprehensif sebanyak **{eval_data['total_bersih']:,} observasi**.
-        """)
+        st.info(f"Asal Usul Metrik Pengujian (Metode Train-Test Split)\n\nSesuai dengan dataset Stunting dan Status Gizi Balita dari Kabupaten Jeneponto, arsitektur ini memproses populasi komprehensif sebanyak {eval_data['total_bersih']:,} observasi.")
         
         eval_col1, eval_col2 = st.columns(2)
         with eval_col1:
@@ -274,11 +271,11 @@ elif menu == "Prediksi Machine Learning":
         with st.form("form_prediksi"):
             col1, col2 = st.columns(2)
             with col1:
-                input_gender_text = st.selectbox("Variabel 1: Klasifikasi Gender", ["Laki-laki", "Perempuan"])
-                input_age = st.slider("Variabel 2: Usia (Bulan)", min_value=0, max_value=60, value=24, step=1)
+                input_gender_text = st.selectbox("Variabel 1 Klasifikasi Gender", ["Laki-laki", "Perempuan"])
+                input_age = st.slider("Variabel 2 Usia (Bulan)", min_value=0, max_value=60, value=24, step=1)
             with col2:
-                input_weight = st.number_input("Variabel 3: Berat Badan Aktual (kg)", min_value=1.0, max_value=40.0, value=10.5, step=0.1)
-                input_height = st.number_input("Variabel 4: Tinggi Badan Aktual (cm)", min_value=30.0, max_value=120.0, value=85.0, step=0.1)
+                input_weight = st.number_input("Variabel 3 Berat Badan Aktual (kg)", min_value=1.0, max_value=40.0, value=10.5, step=0.1)
+                input_height = st.number_input("Variabel 4 Tinggi Badan Aktual (cm)", min_value=30.0, max_value=120.0, value=85.0, step=0.1)
             
             submit_button = st.form_submit_button("Eksekusi Komputasi")
 
@@ -312,9 +309,9 @@ elif menu == "Prediksi Machine Learning":
             with res_col2:
                 st.write("\n\n")
                 if pred_class == 1:
-                    st.error(f"**KEPUTUSAN KELAS: 1 (Positif) | Probabilitas: {pred_proba:.1f}%**\n\nBerdasarkan kalkulasi, proyeksi melampaui ambang batas probabilistik (threshold > 50%).")
+                    st.error(f"KEPUTUSAN KELAS 1 (Positif) Probabilitas {pred_proba:.1f}%\n\nBerdasarkan kalkulasi, proyeksi melampaui ambang batas probabilistik (threshold > 50%).")
                 else:
-                    st.success(f"**KEPUTUSAN KELAS: 0 (Negatif) | Probabilitas: {pred_proba:.1f}%**\n\nKomputasi probabilitas pada kurva bawah (threshold < 50%).")
+                    st.success(f"KEPUTUSAN KELAS 0 (Negatif) Probabilitas {pred_proba:.1f}%\n\nKomputasi probabilitas pada kurva bawah (threshold < 50%).")
 
 # ==========================================
 # 6. HALAMAN 3: ANALISIS REGRESI DINAMIS
@@ -322,23 +319,25 @@ elif menu == "Prediksi Machine Learning":
 elif menu == "Analisis Regresi Dinamis":
     st.title("Modul Komputasi Regresi Logistik Dinamis")
     
-    # 1. Narasi Penjelasan Modul
-    st.markdown("Modul ini dirancang agar Anda dapat menguji dataset kustom menggunakan algoritma Regresi Logistik secara mandiri. Meskipun aplikasi ini berfokus pada deteksi gizi, algoritma ini secara fundamental dapat digunakan untuk menganalisis dan memprediksi kasus **Klasifikasi Biner** lainnya (contoh: mendeteksi email Spam/Bukan Spam, Kredit Diterima/Ditolak, atau Pelanggan Berhenti/Bertahan).")
+    st.markdown("Modul ini dirancang agar Anda dapat menguji dataset kustom menggunakan algoritma Regresi Logistik secara mandiri. Secara fundamental, mesin ini dapat digunakan untuk menganalisis berbagai kasus klasifikasi biner, tidak terbatas hanya pada deteksi status gizi.")
     
     st.divider()
     
-    # 2. Petunjuk Aturan Data
     st.markdown("### Panduan Persiapan Data")
-    st.info("""
-    Sebelum mengunggah file, pastikan data Anda memenuhi dua kriteria utama komputasi mesin berikut:
+    st.write("Pastikan dataset yang akan diunggah telah memenuhi standar komputasi mesin dengan memperhatikan dua aturan dasar di bawah ini.")
     
-    1. **Variabel Target (y) Harus Biner:** Kolom yang ingin Anda prediksi hanya boleh berisi **dua kategori unik**. (Contoh: 0 dan 1, "Ya" dan "Tidak", atau "Positif" dan "Negatif"). Mesin tidak dapat memproses target dengan tiga klasifikasi atau lebih.
-    2. **Variabel Fitur (X) Harus Numerik:** Kolom yang dijadikan faktor penyebab (prediktor) wajib berisi angka. Jika Anda memiliki data teks (kategorikal), ubah terlebih dahulu menjadi angka pada Excel Anda.
-    """)
+    col_panduan1, col_panduan2 = st.columns(2)
     
-    # 3. Pratinjau (Preview) Template Data Ideal
-    st.markdown("#### Pratinjau Format Data Ideal")
-    st.write("Di bawah ini adalah contoh struktur data yang siap dibaca oleh algoritma. Perhatikan bahwa variabel prediktor (Usia, Berat, Tinggi) berupa angka, dan target kelas (Status) hanya memiliki dua variasi (1 atau 0).")
+    with col_panduan1:
+        st.info("**Aturan Variabel Target (y)**\n\nKolom yang menjadi target prediksi wajib hanya memiliki dua kategori unik. Anda bisa menggunakan angka 0 dan 1, atau teks biner seperti Ya dan Tidak. Mesin otomatis menolak data jika terdapat tiga klasifikasi atau lebih.")
+        
+    with col_panduan2:
+        st.info("**Aturan Variabel Fitur (X)**\n\nSeluruh kolom yang bertindak sebagai faktor prediktor wajib berisi angka numerik murni. Anda perlu mengubah data kategorikal berbentuk teks menjadi angka melalui Excel sebelum mengunggahnya ke dalam sistem.")
+    
+    st.write("")
+    
+    st.markdown("### Pratinjau Format Data Ideal")
+    st.write("Tabel di bawah ini menampilkan contoh struktur dataset yang siap dan ideal untuk diproses. Perhatikan bahwa seluruh kolom prediktor telah terisi dengan format angka, dan kolom target pada bagian paling kanan telah disederhanakan menjadi format biner.")
     
     contoh_data_dinamis = pd.DataFrame({
         "Usia_Bulan": [24, 36, 12, 48, 60],
@@ -351,9 +350,8 @@ elif menu == "Analisis Regresi Dinamis":
     
     st.divider()
     
-    # 4. Area Upload File
-    st.markdown("### Unggah Dataset Anda")
-    uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV di sini", type=['xlsx', 'csv'])
+    st.markdown("### Unggah Dataset Baru")
+    uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
         try:
@@ -362,38 +360,36 @@ elif menu == "Analisis Regresi Dinamis":
             else:
                 df_user = pd.read_excel(uploaded_file)
                 
-            st.success("File berhasil dimuat. Berikut adalah cuplikan data Anda:")
+            st.success("File berhasil dibaca oleh sistem. Berikut adalah cuplikan data Anda")
             st.dataframe(df_user.head(), use_container_width=True)
             
             st.divider()
             st.markdown("### Konfigurasi Variabel Algoritma")
-            st.write("Tentukan kolom mana yang akan dijadikan faktor penyebab (Fitur) dan kolom mana yang menjadi hasil prediksi (Target).")
+            st.write("Silakan tentukan kolom yang akan bertindak sebagai faktor penyebab (Fitur) dan kolom yang menjadi hasil prediksi (Target).")
             
             kolom_tersedia = df_user.columns.tolist()
             
             col_target, col_fitur = st.columns([1, 2])
             with col_target:
-                target_y = st.selectbox("Pilih Variabel Target (y):", kolom_tersedia)
+                target_y = st.selectbox("Pilih Variabel Target (y)", kolom_tersedia)
             with col_fitur:
                 pilihan_fitur = [k for k in kolom_tersedia if k != target_y]
-                fitur_x = st.multiselect("Pilih Variabel Fitur (X):", pilihan_fitur)
+                fitur_x = st.multiselect("Pilih Variabel Fitur (X)", pilihan_fitur)
                 
             if st.button("Latih Model Sekarang"):
                 if not fitur_x:
-                    st.error("Silakan pilih minimal satu variabel fitur (X) sebelum melatih model.")
+                    st.error("Gagal memulai komputasi. Anda wajib memilih minimal satu variabel fitur (X).")
                 else:
                     df_model = df_user[fitur_x + [target_y]].copy()
                     
-                    # Konversi fitur ke numerik
                     for col in fitur_x:
                         df_model[col] = pd.to_numeric(df_model[col], errors='coerce')
                     
                     df_model = df_model.dropna()
                     
-                    # Konversi target ke biner jika belum berupa angka 0 dan 1
                     target_unik = df_model[target_y].unique()
                     if len(target_unik) != 2:
-                        st.error(f"Variabel target '{target_y}' harus berupa kelas biner (hanya berisi dua nilai unik). Saat ini terdapat {len(target_unik)} nilai unik pada data bersih.")
+                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data.")
                     else:
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
@@ -415,7 +411,7 @@ elif menu == "Analisis Regresi Dinamis":
                         
                         st.divider()
                         st.markdown("### Hasil Evaluasi Model Dinamis")
-                        st.write(f"Model berhasil dilatih menggunakan **{len(df_model):,} baris data bersih** setelah mengeleminasi sel yang kosong.")
+                        st.write(f"Model berhasil menyelesaikan komputasi menggunakan **{len(df_model):,} baris data bersih** setelah mengeleminasi sel kosong pada dataset.")
                         
                         eval_col1, eval_col2 = st.columns(2)
                         with eval_col1:
@@ -438,7 +434,7 @@ elif menu == "Analisis Regresi Dinamis":
                             st.plotly_chart(fig_roc_dyn, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan teknis saat memproses data unggahan. Detail: {e}")
+            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah {e}")
 
 # Footer
 st.sidebar.divider()
