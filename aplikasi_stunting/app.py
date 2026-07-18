@@ -213,7 +213,7 @@ if menu == "Analisis Data Deskriptif":
 
         col_scatter, col_text = st.columns([1.5, 1])
         with col_scatter:
-            fig_scatter = px.scatter(df_filtered, x='Weight', y='Height', color='Status', title='Pola Pertumbuhan Fisik: Tinggi vs Berat Badan', color_discrete_map={'Not Stunted':'#4CAF50', 'Stunted':'#FF5252'}, opacity=0.6)
+            fig_scatter = px.scatter(df_filtered, x='Weight', y='Height', color='Status', title='Pola Pertumbuhan Fisik Tinggi vs Berat Badan', color_discrete_map={'Not Stunted':'#4CAF50', 'Stunted':'#FF5252'}, opacity=0.6)
             fig_scatter.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
             st.plotly_chart(fig_scatter, use_container_width=True)
             
@@ -363,6 +363,11 @@ elif menu == "Analisis Regresi Dinamis":
             st.success("File berhasil dibaca oleh sistem. Berikut adalah cuplikan data Anda")
             st.dataframe(df_user.head(), use_container_width=True)
             
+            # FITUR BARU: Deskripsi Statistik
+            st.markdown("### Deskripsi Statistik Data")
+            st.write("Tabel di bawah ini menampilkan ringkasan kalkulasi statistik (jumlah, rata-rata, nilai minimum, dan maksimum) dari seluruh kolom numerik pada dataset Anda.")
+            st.dataframe(df_user.describe(), use_container_width=True)
+            
             st.divider()
             st.markdown("### Konfigurasi Variabel Algoritma")
             st.write("Silakan tentukan kolom yang akan bertindak sebagai faktor penyebab (Fitur) dan kolom yang menjadi hasil prediksi (Target).")
@@ -389,7 +394,7 @@ elif menu == "Analisis Regresi Dinamis":
                     
                     target_unik = df_model[target_y].unique()
                     if len(target_unik) != 2:
-                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data.")
+                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data bersih.")
                     else:
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
