@@ -14,7 +14,6 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc
 # ==========================================
 st.set_page_config(page_title="Dashboard Machine Learning", layout="wide", initial_sidebar_state="expanded")
 
-# CSS dipertahankan untuk Kartu Angka (Metric Card)
 st.markdown("""
     <style>
     .metric-card {
@@ -24,7 +23,6 @@ st.markdown("""
         text-align: center;
         border-left: 5px solid #4CAF50;
         box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-        cursor: help;
     }
     .metric-card-alert {
         background-color: #1E1E1E !important;
@@ -33,7 +31,6 @@ st.markdown("""
         text-align: center;
         border-left: 5px solid #FF5252;
         box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-        cursor: help;
     }
     .metric-value { font-size: 36px; font-weight: bold; color: #FFFFFF !important; }
     .metric-label { font-size: 14px; color: #A0A0A0 !important; margin-top: 5px; }
@@ -41,9 +38,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. SISTEM CACHE & PEMROSESAN DATA
+# 2. SISTEM CACHE & PEMROSESAN DATA UTAMA
 # ==========================================
-# Deteksi lokasi folder tempat app.py berada agar bisa dibaca oleh GitHub
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @st.cache_data
@@ -60,7 +56,6 @@ def load_analytics_data():
     for nama_periode, path_file in daftar_file.items():
         try:
             df = pd.read_excel(path_file)
-            
             kolom_numerik = ['Age (Month)', 'Weight', 'Height']
             for col in kolom_numerik:
                 if col in df.columns:
@@ -86,8 +81,12 @@ def load_analytics_data():
 @st.cache_resource
 def train_ml_model():
     path_ml = os.path.join(BASE_DIR, 'Preprocessed Data.xlsx')
-    df = pd.read_excel(path_ml)
-    
+    try:
+        df = pd.read_excel(path_ml)
+    except Exception:
+        # Menghindari error mematikan jika file belum ada
+        return None, None, None
+
     def selamatkan_berat_badan(val):
         if isinstance(val, datetime.datetime):
             return val.day + (val.month / 10)
@@ -146,7 +145,11 @@ model_ml, scaler_ml, eval_data = train_ml_model()
 # 3. NAVIGASI SIDEBAR
 # ==========================================
 st.sidebar.title("Navigasi Dashboard")
-menu = st.sidebar.radio("Pilih Modul Analisis:", ["Analisis Data Deskriptif", "Prediksi Machine Learning"])
+menu = st.sidebar.radio("Pilih Modul Analisis:", [
+    "Analisis Data Deskriptif", 
+    "Prediksi Machine Learning",
+    "Upload Data Kustom" # Menu Baru Ditambahkan
+])
 st.sidebar.divider()
 st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balita Kabupaten Jeneponto menggunakan komputasi statistik dan algoritma Logistic Regression.")
 
@@ -155,7 +158,7 @@ st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balit
 # ==========================================
 if menu == "Analisis Data Deskriptif":
     st.title("Analisis Tren dan Sebaran Data Visual")
-    st.write("Silakan atur parameter di bawah ini. Dasbor akan secara otomatis melakukan kalkulasi ulang pada matriks visualisasi dan teks interpretasi.")
+    st.write("Silakan atur parameter di bawah ini. Dasbor akan secara otomatis melakukan kalkulasi ulang pada matriks visualisasi.")
     
     st.divider()
     col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
@@ -164,12 +167,12 @@ if menu == "Analisis Data Deskriptif":
     with col_f2:
         filter_gender = st.selectbox("Klasifikasi Gender:", ["Semua Populasi", "Laki-laki", "Perempuan"], help="Saring data berdasarkan jenis kelamin spesifik.")
     with col_f3:
-        df_aktif = df_analytics_dict[filter_tahun]
+        df_aktif = df_analytics_dict.get(filter_tahun, pd.DataFrame())
         min_age, max_age = 0, 60
         if not df_aktif.empty and pd.notna(df_aktif['Age (Month)'].min()):
             min_age = int(df_aktif['Age (Month)'].min())
             max_age = int(df_aktif['Age (Month)'].max())
-        rentang_umur = st.slider("Rentang Usia (Bulan):", min_value=min_age, max_value=max_age, value=(min_age, max_age), help="Geser panel untuk membatasi usia balita.")
+        rentang_umur = st.slider("Rentang Usia (Bulan):", min_value=min_age, max_value=max_age, value=(min_age, max_age))
     
     if not df_aktif.empty:
         df_filtered = df_aktif[(df_aktif['Age (Month)'] >= rentang_umur[0]) & (df_aktif['Age (Month)'] <= rentang_umur[1])]
@@ -217,7 +220,6 @@ if menu == "Analisis Data Deskriptif":
             
         with col_text:
             st.markdown("### Kesimpulan & Interpretasi")
-            
             narasi = f"Berdasarkan parameter penyaringan untuk **{filter_gender}** pada rentang usia **{rentang_umur[0]} - {rentang_umur[1]} bulan** di periode **{filter_tahun}**, komputasi mencatat sebanyak **{total_stunting:,} observasi** (dari total {total_data:,} sampel) terindikasi sebagai perlambatan laju pertumbuhan (Stunted)."
             
             if persen_stunting > 30:
@@ -236,104 +238,171 @@ elif menu == "Prediksi Machine Learning":
     st.title("Model Prediksi Probabilistik & Arsitektur Evaluasi")
     st.write("Modul ini mengeksekusi algoritma Logistic Regression berpenalti L1 (Lasso Regression) berdasarkan pembobotan fitur fisik historis.")
     
-    st.divider()
-    
-    # ---------------------------------------------------------
-    # DIPINDAHKAN KE ATAS: EVALUASI KINERJA ARSITEKTUR MODEL
-    # ---------------------------------------------------------
-    st.markdown("### Evaluasi Kinerja Arsitektur Model")
-    
-    st.info(f"""
-    **Asal Usul Metrik Pengujian (Metode Train-Test Split):**
-    
-    Sesuai dengan dataset Stunting dan Status Gizi Balita dari Kabupaten Jeneponto, arsitektur ini memproses populasi komprehensif sebanyak **{eval_data['total_bersih']:,} observasi**. Untuk mencegah *overfitting*, data dipecah secara proporsional:
-    
-    1. **80% Training Set:** Dimanfaatkan secara eksklusif oleh algoritma untuk mengekstraksi koefisien dan pola matematis.
-    2. **20% Testing Set ({eval_data['total_uji']:,} sampel):** Data empiris yang diisolasi khusus untuk menantang tingkat akurasi tebakan model. Hasil evaluasi objektif pada set pengujian inilah yang divisualisasikan pada instrumen **Confusion Matrix** dan **Kurva ROC** di bawah ini.
-    """)
-    
-    eval_col1, eval_col2 = st.columns(2)
-    with eval_col1:
-        cm = confusion_matrix(eval_data['y_test'], eval_data['y_pred'])
-        fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale='Blues',
-                           labels=dict(x="Prediksi Algoritma", y="Data Aktual", color="Frekuensi Pengamatan"),
-                           x=['Not Stunted (0)', 'Stunted (1)'], y=['Not Stunted (0)', 'Stunted (1)'],
-                           title="Confusion Matrix")
-        fig_cm.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
-        st.plotly_chart(fig_cm, use_container_width=True)
-        
-    with eval_col2:
-        fpr, tpr, _ = roc_curve(eval_data['y_test'], eval_data['y_pred_proba'])
-        roc_auc = auc(fpr, tpr)
-        
-        fig_roc = go.Figure()
-        fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'Kurva ROC (AUC = {roc_auc:.4f})', line=dict(color='darkorange', width=3)))
-        fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Garis Ambang Dasar', line=dict(color='navy', width=2, dash='dash')))
-        fig_roc.update_layout(title='Receiver Operating Characteristic (ROC)', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate',
-                              plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
-        st.plotly_chart(fig_roc, use_container_width=True)
-        
-    st.success(f"""
-    **Interpretasi Confusion Matrix & ROC:**
-    
-    Berdasarkan pengujian terhadap **{eval_data['total_uji']:,} sampel uji**, matriks evaluasi menghasilkan pemetaan yang sangat akurat:
-    *   **True Negative (Kiri Atas):** Model berhasil mendeteksi secara presisi sebagian besar populasi balita yang memang berstatus "Not Stunted".
-    *   **True Positive (Kanan Bawah):** Model sukses melakukan klasifikasi yang tepat pada balita dengan kondisi aktual "Stunted".
-    *   **False Positive & False Negative:** Hanya terdapat persentase kesalahan klasifikasi yang sangat minim pada kuadran Kanan Atas dan Kiri Bawah, membuktikan rasio presisi dan sensitivitas (Recall) algoritma yang tinggi.
-    
-    Lebih lanjut, nilai **AUC (Area Under Curve) sebesar {roc_auc:.2f}** pada kurva ROC mengonfirmasi kemampuan separasi model yang superior. Semakin mendekati angka 1.0, semakin cerdas model dalam membedakan entitas kelas positif (Stunted) dan kelas negatif (Not Stunted).
-    """)
-
-    st.divider()
-
-    # ---------------------------------------------------------
-    # DIPINDAHKAN KE BAWAH: KALKULATOR PROBABILITAS
-    # ---------------------------------------------------------
-    st.markdown("### Kalkulator Probabilitas Sigmoid")
-    with st.form("form_prediksi"):
-        col1, col2 = st.columns(2)
-        with col1:
-            input_gender_text = st.selectbox("Variabel 1: Klasifikasi Gender", ["Laki-laki", "Perempuan"], help="Penentuan kategori biologis dasar pengamatan.")
-            input_age = st.slider("Variabel 2: Usia (Bulan)", min_value=0, max_value=60, value=24, step=1, help="Menentukan sumbu usia pengamatan.")
-        with col2:
-            input_weight = st.number_input("Variabel 3: Berat Badan Aktual (kg)", min_value=1.0, max_value=40.0, value=10.5, step=0.1, help="Beban masa aktual objek.")
-            input_height = st.number_input("Variabel 4: Tinggi Badan Aktual (cm)", min_value=30.0, max_value=120.0, value=85.0, step=0.1, help="Dimensi vertikal objek.")
-        
-        submit_button = st.form_submit_button("Eksekusi Komputasi")
-
-    if submit_button:
-        input_gender = 1 if input_gender_text == "Laki-laki" else 0
-        user_data = pd.DataFrame([[input_gender, input_age, input_weight, input_height]], columns=['Gender', 'Age (Month)', 'Weight', 'Height'])
-        user_data_scaled = scaler_ml.transform(user_data)
-        
-        pred_proba = model_ml.predict_proba(user_data_scaled)[0][1] * 100 
-        pred_class = model_ml.predict(user_data_scaled)[0]
-        
+    if model_ml is None:
+        st.error("Model Machine Learning gagal dimuat. Pastikan file 'Preprocessed Data.xlsx' tersedia di direktori sistem.")
+    else:
         st.divider()
-        st.markdown("### Ekstraksi Prediksi Probabilitas")
-        res_col1, res_col2 = st.columns([1, 1.5])
+        st.markdown("### Evaluasi Kinerja Arsitektur Model")
         
-        with res_col1:
-            fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number", value = pred_proba, domain = {'x': [0, 1], 'y': [0, 1]},
-                title = {'text': "Probabilitas Klasifikasi", 'font': {'size': 18, 'color': 'white'}},
-                number = {'suffix': "%", 'font': {'color': 'white'}},
-                gauge = {
-                    'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "white"},
-                    'bar': {'color': "#FF5252" if pred_proba >= 50 else "#4CAF50"},
-                    'bgcolor': "white",
-                    'steps': [{'range': [0, 50], 'color': '#1E1E1E'}, {'range': [50, 100], 'color': '#2b2b2b'}],
-                }
-            ))
-            fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=300, margin=dict(t=50, b=10, l=10, r=10))
-            st.plotly_chart(fig_gauge, use_container_width=True)
+        st.info(f"""
+        **Asal Usul Metrik Pengujian (Metode Train-Test Split):**
+        Sesuai dengan dataset Stunting dan Status Gizi Balita dari Kabupaten Jeneponto, arsitektur ini memproses populasi komprehensif sebanyak **{eval_data['total_bersih']:,} observasi**.
+        """)
+        
+        eval_col1, eval_col2 = st.columns(2)
+        with eval_col1:
+            cm = confusion_matrix(eval_data['y_test'], eval_data['y_pred'])
+            fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale='Blues',
+                               labels=dict(x="Prediksi Algoritma", y="Data Aktual", color="Frekuensi Pengamatan"),
+                               x=['Not Stunted (0)', 'Stunted (1)'], y=['Not Stunted (0)', 'Stunted (1)'],
+                               title="Confusion Matrix")
+            fig_cm.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+            st.plotly_chart(fig_cm, use_container_width=True)
             
-        with res_col2:
-            st.write("\n\n")
-            if pred_class == 1:
-                st.error(f"**KEPUTUSAN KELAS: 1 (Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nBerdasarkan kalkulasi fungsi aktivasi terhadap koefisien fitur pembentuk model, proyeksi melampaui **ambang batas probabilistik (threshold > 50%)**. Dalam evaluasi analitis, profil vektor dimensi ini mengonfirmasi presensi pola Stunted.")
+        with eval_col2:
+            fpr, tpr, _ = roc_curve(eval_data['y_test'], eval_data['y_pred_proba'])
+            roc_auc = auc(fpr, tpr)
+            
+            fig_roc = go.Figure()
+            fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'Kurva ROC (AUC = {roc_auc:.4f})', line=dict(color='darkorange', width=3)))
+            fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Garis Ambang Dasar', line=dict(color='navy', width=2, dash='dash')))
+            fig_roc.update_layout(title='Receiver Operating Characteristic (ROC)', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate',
+                                  plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+            st.plotly_chart(fig_roc, use_container_width=True)
+
+        st.divider()
+        st.markdown("### Kalkulator Probabilitas Sigmoid")
+        with st.form("form_prediksi"):
+            col1, col2 = st.columns(2)
+            with col1:
+                input_gender_text = st.selectbox("Variabel 1: Klasifikasi Gender", ["Laki-laki", "Perempuan"])
+                input_age = st.slider("Variabel 2: Usia (Bulan)", min_value=0, max_value=60, value=24, step=1)
+            with col2:
+                input_weight = st.number_input("Variabel 3: Berat Badan Aktual (kg)", min_value=1.0, max_value=40.0, value=10.5, step=0.1)
+                input_height = st.number_input("Variabel 4: Tinggi Badan Aktual (cm)", min_value=30.0, max_value=120.0, value=85.0, step=0.1)
+            
+            submit_button = st.form_submit_button("Eksekusi Komputasi")
+
+        if submit_button:
+            input_gender = 1 if input_gender_text == "Laki-laki" else 0
+            user_data = pd.DataFrame([[input_gender, input_age, input_weight, input_height]], columns=['Gender', 'Age (Month)', 'Weight', 'Height'])
+            user_data_scaled = scaler_ml.transform(user_data)
+            
+            pred_proba = model_ml.predict_proba(user_data_scaled)[0][1] * 100 
+            pred_class = model_ml.predict(user_data_scaled)[0]
+            
+            st.divider()
+            st.markdown("### Ekstraksi Prediksi Probabilitas")
+            res_col1, res_col2 = st.columns([1, 1.5])
+            
+            with res_col1:
+                fig_gauge = go.Figure(go.Indicator(
+                    mode = "gauge+number", value = pred_proba, domain = {'x': [0, 1], 'y': [0, 1]},
+                    title = {'text': "Probabilitas Klasifikasi", 'font': {'size': 18, 'color': 'white'}},
+                    number = {'suffix': "%", 'font': {'color': 'white'}},
+                    gauge = {
+                        'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                        'bar': {'color': "#FF5252" if pred_proba >= 50 else "#4CAF50"},
+                        'bgcolor': "white",
+                        'steps': [{'range': [0, 50], 'color': '#1E1E1E'}, {'range': [50, 100], 'color': '#2b2b2b'}],
+                    }
+                ))
+                fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=300, margin=dict(t=50, b=10, l=10, r=10))
+                st.plotly_chart(fig_gauge, use_container_width=True)
+                
+            with res_col2:
+                st.write("\n\n")
+                if pred_class == 1:
+                    st.error(f"**KEPUTUSAN KELAS: 1 (Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nBerdasarkan kalkulasi, proyeksi melampaui ambang batas probabilistik (threshold > 50%). Konfirmasi presensi pola Stunted.")
+                else:
+                    st.success(f"**KEPUTUSAN KELAS: 0 (Not Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nKomputasi probabilitas pada kurva bawah (threshold < 50%). Ekuivalen dengan matriks kelas Not Stunted.")
+
+# ==========================================
+# 6. HALAMAN 3: UPLOAD & ANALISIS MANDIRI
+# ==========================================
+elif menu == "Upload Data Kustom":
+    st.title("Upload & Analisis Data Mandiri")
+    st.write("Unggah dataset riwayat kesehatan balita milik Anda. Sistem akan memproses dan memvisualisasikan tren secara otomatis.")
+    
+    st.markdown("### 📋 Panduan Format Data")
+    st.info("Agar mesin dapat membaca data Anda dengan akurat, pastikan file memiliki **minimal 5 kolom utama** dengan penamaan bahasa Inggris (huruf kapital di awal) seperti contoh tabel di bawah ini. File didukung dalam format **.xlsx** atau **.csv**.")
+    
+    # Membuat tabel contoh (Dummy Data) agar pengguna tahu format yang benar
+    contoh_df = pd.DataFrame({
+        "Gender": ["F", "M", "M", "F", "M"],
+        "Age (Month)": [54, 44, 24, 12, 36],
+        "Weight": [13.2, 12.0, 9.5, 7.5, 11.2],
+        "Height": [97.5, 92.0, 80.5, 70.0, 89.0],
+        "Height for Age": ["Stunted", "Stunted", "Normal", "Normal", "Stunted"]
+    })
+    
+    st.dataframe(contoh_df, use_container_width=True, hide_index=True)
+    
+    st.divider()
+    
+    st.markdown("### 📤 Modul Unggah File")
+    uploaded_file = st.file_uploader("Seret dan lepaskan file Excel/CSV di sini", type=['xlsx', 'csv'])
+    
+    if uploaded_file is not None:
+        try:
+            # Membaca format berdasarkan ekstensi
+            if uploaded_file.name.endswith('.csv'):
+                df_user = pd.read_csv(uploaded_file)
             else:
-                st.success(f"**KEPUTUSAN KELAS: 0 (Not Stunted) | Probabilitas: {pred_proba:.1f}%**\n\nKomputasi fungsi aktivasi linier memetakan proyeksi probabilitas pada kurva bawah **(threshold < 50%)**. Berdasarkan model Logistic Regression, susunan metrik input ini ekuivalen dengan matriks kelas Not Stunted.")
+                df_user = pd.read_excel(uploaded_file)
+                
+            # Validasi nama kolom wajib
+            kolom_wajib = ['Gender', 'Age (Month)', 'Weight', 'Height', 'Height for Age']
+            kolom_hilang = [k untuk k in kolom_wajib jika k tidak ada di df_user.columns]
+            
+            if kolom_hilang:
+                st.error(f"**Validasi Gagal:** Sistem tidak menemukan kolom berikut di data Anda: {kolom_hilang}. Silakan perbaiki nama kolom pada file Anda agar sesuai dengan tabel panduan di atas.")
+            else:
+                st.success(f"File **{uploaded_file.name}** berhasil diproses! Sebanyak {len(df_user):,} baris data terdeteksi.")
+                
+                # Proses Pembersihan Data Sama Seperti Dashboard Utama
+                for col in ['Age (Month)', 'Weight', 'Height']:
+                    df_user[col] = pd.to_numeric(df_user[col], errors='coerce')
+                
+                def tentukan_gender_kustom(x):
+                    val = str(x).strip().upper()
+                    if val in ['M', '1', '1.0', 'L', 'LAKI-LAKI']:
+                        return 'Laki-laki'
+                    return 'Perempuan'
+                df_user['Gender_Label'] = df_user['Gender'].apply(tentukan_gender_kustom)
+                df_user['Status'] = df_user['Height for Age'].astype(str).str.strip().str.title()
+                
+                # Menampilkan Kalkulasi Metrik (KPI)
+                total_data_kustom = len(df_user)
+                total_stunting_kustom = len(df_user[df_user['Status'] == 'Stunted'])
+                persen_stunting_kustom = (total_stunting_kustom / total_data_kustom) * 100 if total_data_kustom > 0 else 0
+                
+                st.divider()
+                st.markdown("###  Ringkasan Visualisasi Data Anda")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown(f'<div class="metric-card"><div class="metric-value">{total_data_kustom:,}</div><div class="metric-label">TOTAL DATA ANDA</div></div>', unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f'<div class="metric-card-alert"><div class="metric-value" style="color:#FF5252;">{total_stunting_kustom:,}</div><div class="metric-label">TERKLASIFIKASI STUNTED</div></div>', unsafe_allow_html=True)
+                with col3:
+                    st.markdown(f'<div class="metric-card-alert" style="border-left-color: #FFC107;"><div class="metric-value" style="color:#FFC107;">{persen_stunting_kustom:.1f}%</div><div class="metric-label">PERSENTASE PREVALENSI</div></div>', unsafe_allow_html=True)
+                
+                st.write("\n")
+                
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    fig_pie_user = px.pie(df_user, names='Status', title='Proporsi Status Stunting Data Unggahan', color='Status', color_discrete_map={'Not Stunted':'#4CAF50', 'Stunted':'#FF5252', 'Normal':'#4CAF50'}, hole=0.5)
+                    fig_pie_user.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                    st.plotly_chart(fig_pie_user, use_container_width=True)
+                    
+                with col_c2:
+                    fig_hist_user = px.histogram(df_user, x='Age (Month)', color='Status', barmode='group', title='Distribusi Usia Berdasarkan Kelas', color_discrete_map={'Not Stunted':'#4CAF50', 'Stunted':'#FF5252', 'Normal':'#4CAF50'})
+                    fig_hist_user.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                    st.plotly_chart(fig_hist_user, use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Terjadi kesalahan saat membaca file. Pastikan file tidak rusak atau di-password. Detail: {e}")
 
 # Footer
 st.sidebar.divider()
