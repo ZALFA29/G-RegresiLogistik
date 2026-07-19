@@ -60,14 +60,11 @@ def load_analytics_data():
             
             for col in kolom_numerik:
                 if col in df.columns:
-                    # FIX TOTAL: 1. Selamatkan dari format tanggal Excel
                     def selamatkan_angka_excel(val):
                         if isinstance(val, datetime.datetime):
                             return val.day + (val.month / 10.0)
                         return val
                     df[col] = df[col].apply(selamatkan_angka_excel)
-                    
-                    # FIX TOTAL: 2. Ubah koma jadi titik lalu jadikan angka murni
                     df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
                     df[col] = pd.to_numeric(df[col], errors='coerce')
             
@@ -82,7 +79,6 @@ def load_analytics_data():
             if 'Height for Age' in df.columns:
                 df['Status'] = df['Height for Age'].astype(str).str.strip().str.title()
             
-            # Memastikan baris dengan nilai benar-benar kosong dibersihkan
             if set(kolom_numerik).issubset(df.columns):
                 df = df.dropna(subset=kolom_numerik)
                 
@@ -117,7 +113,6 @@ def train_ml_model():
     kolom_numerik = ['Gender', 'Age (Month)', 'Weight', 'Height']
     for col in kolom_numerik:
         if col in df.columns:
-            # Terapkan fungsi pembersihan yang sama persis dengan Halaman 1
             def selamatkan_angka_excel(val):
                 if isinstance(val, datetime.datetime):
                     return val.day + (val.month / 10.0)
@@ -442,6 +437,24 @@ elif menu == "Unggah & Uji Data Anda":
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
                             
+                        # === PENAMBAHAN ANALISIS DESKRIPTIF ===
+                        st.divider()
+                        st.markdown(f"### Analisis Deskriptif Visual (Data: {len(df_model):,} Baris)")
+                        
+                        col_desc1, col_desc2 = st.columns(2)
+                        with col_desc1:
+                            fig_pie_dyn = px.pie(df_model, names=target_y, title=f'Proporsi Target: {target_y}', hole=0.5, color_discrete_sequence=px.colors.qualitative.Pastel)
+                            fig_pie_dyn.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                            st.plotly_chart(fig_pie_dyn, use_container_width=True)
+                            
+                        with col_desc2:
+                            # Menampilkan distribusi dari variabel fitur pertama yang dipilih pengguna
+                            fitur_utama = fitur_x[0]
+                            fig_hist_dyn = px.histogram(df_model, x=fitur_utama, color=target_y, barmode='group', title=f'Distribusi Fitur: {fitur_utama}', color_discrete_sequence=px.colors.qualitative.Pastel)
+                            fig_hist_dyn.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                            st.plotly_chart(fig_hist_dyn, use_container_width=True)
+                        
+                        # === PROSES MACHINE LEARNING ===
                         X_dyn = df_model[fitur_x]
                         y_dyn = df_model[target_y]
                         
@@ -459,7 +472,7 @@ elif menu == "Unggah & Uji Data Anda":
                         
                         st.divider()
                         st.markdown("### Hasil Evaluasi Model Dinamis")
-                        st.write(f"Model berhasil menyelesaikan komputasi menggunakan **{len(df_model):,} baris data bersih** setelah mengeleminasi sel kosong pada dataset.")
+                        st.write("Visualisasi metrik komputasi di bawah ini mengukur seberapa akurat mesin mengenali pola pada dataset unggahan Anda.")
                         
                         eval_col1, eval_col2 = st.columns(2)
                         with eval_col1:
