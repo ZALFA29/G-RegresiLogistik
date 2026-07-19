@@ -60,9 +60,15 @@ def load_analytics_data():
             
             for col in kolom_numerik:
                 if col in df.columns:
-                    # FIX BUG 19.912: Mengubah koma menjadi titik sebelum dikonversi ke angka
-                    if df[col].dtype == 'object':
-                        df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+                    # FIX TOTAL: 1. Selamatkan dari format tanggal Excel
+                    def selamatkan_angka_excel(val):
+                        if isinstance(val, datetime.datetime):
+                            return val.day + (val.month / 10.0)
+                        return val
+                    df[col] = df[col].apply(selamatkan_angka_excel)
+                    
+                    # FIX TOTAL: 2. Ubah koma jadi titik lalu jadikan angka murni
+                    df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
                     df[col] = pd.to_numeric(df[col], errors='coerce')
             
             if 'Gender' in df.columns:
@@ -76,7 +82,7 @@ def load_analytics_data():
             if 'Height for Age' in df.columns:
                 df['Status'] = df['Height for Age'].astype(str).str.strip().str.title()
             
-            # Memastikan baris dengan nilai kosong dibersihkan
+            # Memastikan baris dengan nilai benar-benar kosong dibersihkan
             if set(kolom_numerik).issubset(df.columns):
                 df = df.dropna(subset=kolom_numerik)
                 
@@ -93,12 +99,6 @@ def train_ml_model():
         df = pd.read_excel(path_ml)
     except Exception:
         return None, None, None
-
-    def selamatkan_berat_badan(val):
-        if isinstance(val, datetime.datetime):
-            return val.day + (val.month / 10)
-        return val
-    df['Weight'] = df['Weight'].apply(selamatkan_berat_badan)
     
     def binarize_target(x):
         val = str(x).strip().upper()
@@ -117,8 +117,13 @@ def train_ml_model():
     kolom_numerik = ['Gender', 'Age (Month)', 'Weight', 'Height']
     for col in kolom_numerik:
         if col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+            # Terapkan fungsi pembersihan yang sama persis dengan Halaman 1
+            def selamatkan_angka_excel(val):
+                if isinstance(val, datetime.datetime):
+                    return val.day + (val.month / 10.0)
+                return val
+            df[col] = df[col].apply(selamatkan_angka_excel)
+            df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
             df[col] = pd.to_numeric(df[col], errors='coerce')
     
     df = df.dropna(subset=kolom_numerik).copy()
@@ -183,7 +188,6 @@ if menu == "Analisis Data Deskriptif":
     with col_f3:
         df_aktif = df_analytics_dict.get(filter_tahun, pd.DataFrame())
         
-        # Logika slider dikembalikan agar bisa mendeteksi batas usia secara otomatis (termasuk 60)
         min_age, max_age = 0, 60
         if not df_aktif.empty and pd.notna(df_aktif['Age (Month)'].min()):
             min_age = int(df_aktif['Age (Month)'].min())
