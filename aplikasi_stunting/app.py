@@ -57,8 +57,12 @@ def load_analytics_data():
         try:
             df = pd.read_excel(path_file)
             kolom_numerik = ['Age (Month)', 'Weight', 'Height']
+            
             for col in kolom_numerik:
                 if col in df.columns:
+                    # FIX BUG 19.912: Mengubah koma menjadi titik sebelum dikonversi ke angka
+                    if df[col].dtype == 'object':
+                        df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
                     df[col] = pd.to_numeric(df[col], errors='coerce')
             
             if 'Gender' in df.columns:
@@ -72,7 +76,7 @@ def load_analytics_data():
             if 'Height for Age' in df.columns:
                 df['Status'] = df['Height for Age'].astype(str).str.strip().str.title()
             
-            # Memastikan baris dengan nilai kosong pada fitur utama dibersihkan
+            # Memastikan baris dengan nilai kosong dibersihkan
             if set(kolom_numerik).issubset(df.columns):
                 df = df.dropna(subset=kolom_numerik)
                 
@@ -112,9 +116,11 @@ def train_ml_model():
     
     kolom_numerik = ['Gender', 'Age (Month)', 'Weight', 'Height']
     for col in kolom_numerik:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+        if col in df.columns:
+            if df[col].dtype == 'object':
+                df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+            df[col] = pd.to_numeric(df[col], errors='coerce')
     
-    # Drop baris yang kosong untuk memastikan mesin komputasi tidak error
     df = df.dropna(subset=kolom_numerik).copy()
     
     X = df[['Gender', 'Age (Month)', 'Weight', 'Height']]
@@ -151,7 +157,7 @@ model_ml, scaler_ml, eval_data = train_ml_model()
 st.sidebar.title("Dasbor")
 menu = st.sidebar.radio("Pilih Modul Analisis", [
     "Analisis Data Deskriptif", 
-    "Prediksi Pembelajaran Mesin",
+    "Prediksi Machine Learning",
     "Unggah & Uji Data Anda" 
 ])
 st.sidebar.divider()
@@ -162,7 +168,7 @@ st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balit
 # ==========================================
 if menu == "Analisis Data Deskriptif":
     st.title("Dataset Stunting dan Status Gizi Balita Kabupaten Jeneponto")
-    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang balita (usia 0-59 bulan) dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024. Dari total 40.071 data mentah, komputasi mengeksekusi **40.069 data bersih** setelah mengeleminasi entri dengan observasi kosong (missing values).")
+    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang balita dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024. Dari total 40.071 data mentah, komputasi mengeksekusi data bersih setelah mengeleminasi entri dengan observasi kosong (missing values).")
     
     st.info("Deklarasi Sumber Data Publik\n\nData yang disajikan pada sistem ini diambil dari repositori publik dan resmi untuk keperluan penelitian akademis. Anda dapat memverifikasi keabsahan data, struktur variabel, dan profil geografis secara langsung melalui tautan berikut: [Mendeley Data - Dataset Stunting Jeneponto](https://data.mendeley.com/datasets/wzwpc9j5bx/4)")
     
@@ -176,10 +182,13 @@ if menu == "Analisis Data Deskriptif":
         filter_gender = st.selectbox("Klasifikasi Gender", ["Semua Populasi", "Laki-laki", "Perempuan"])
     with col_f3:
         df_aktif = df_analytics_dict.get(filter_tahun, pd.DataFrame())
+        
+        # Logika slider dikembalikan agar bisa mendeteksi batas usia secara otomatis (termasuk 60)
         min_age, max_age = 0, 60
         if not df_aktif.empty and pd.notna(df_aktif['Age (Month)'].min()):
             min_age = int(df_aktif['Age (Month)'].min())
             max_age = int(df_aktif['Age (Month)'].max())
+            
         rentang_umur = st.slider("Rentang Usia (Bulan)", min_value=min_age, max_value=max_age, value=(min_age, max_age))
     
     if not df_aktif.empty:
@@ -242,7 +251,7 @@ if menu == "Analisis Data Deskriptif":
 # ==========================================
 # 5. HALAMAN 2: PREDIKSI MACHINE LEARNING
 # ==========================================
-elif menu == "Prediksi Pembelajaran Mesin":
+elif menu == "Prediksi Machine Learning":
     st.title("Model Prediksi Probabilistik & Arsitektur Evaluasi")
     st.write("Modul ini mengeksekusi algoritma Logistic Regression berpenalti L1 (Lasso Regression) berdasarkan pembobotan fitur fisik historis.")
     
@@ -349,7 +358,7 @@ elif menu == "Unggah & Uji Data Anda":
     st.write("Tabel di bawah ini menampilkan contoh struktur dataset yang siap dan ideal untuk diproses. Perhatikan bahwa seluruh kolom prediktor telah terisi dengan format angka, dan kolom target pada bagian paling kanan telah disederhanakan menjadi format biner.")
     
     contoh_data_dinamis = pd.DataFrame({
-        "Usia_Bulan": [24, 36, 12, 48, 60],
+        "Usia_Bulan": [24, 36, 12, 48, 59],
         "Berat_Badan_Kg": [10.5, 14.2, 8.0, 16.5, 19.0],
         "Tinggi_Badan_Cm": [85.0, 95.5, 72.0, 105.0, 110.0],
         "Status_Kelas_Target": [1, 0, 1, 0, 0]
