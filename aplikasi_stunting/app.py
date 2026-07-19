@@ -72,6 +72,10 @@ def load_analytics_data():
             if 'Height for Age' in df.columns:
                 df['Status'] = df['Height for Age'].astype(str).str.strip().str.title()
             
+            # Memastikan baris dengan nilai kosong pada fitur utama dibersihkan
+            if set(kolom_numerik).issubset(df.columns):
+                df = df.dropna(subset=kolom_numerik)
+                
             data_dict[nama_periode] = df
         except Exception:
             data_dict[nama_periode] = pd.DataFrame()
@@ -110,6 +114,7 @@ def train_ml_model():
     for col in kolom_numerik:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     
+    # Drop baris yang kosong untuk memastikan mesin komputasi tidak error
     df = df.dropna(subset=kolom_numerik).copy()
     
     X = df[['Gender', 'Age (Month)', 'Weight', 'Height']]
@@ -143,23 +148,23 @@ model_ml, scaler_ml, eval_data = train_ml_model()
 # ==========================================
 # 3. NAVIGASI SIDEBAR
 # ==========================================
-st.sidebar.title("Navigasi Dashboard")
+st.sidebar.title("Dasbor")
 menu = st.sidebar.radio("Pilih Modul Analisis", [
     "Analisis Data Deskriptif", 
-    "Prediksi Machine Learning",
-    "Upload & Uji Data Anda" 
+    "Prediksi Pembelajaran Mesin",
+    "Unggah & Uji Data Anda" 
 ])
 st.sidebar.divider()
-st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balita Kabupaten Jeneponto menggunakan komputasi statistik dan algoritma Logistic Regression.")
+st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balita Kabupaten Jeneponto menggunakan komputasi statistik dan algoritma Regresi Logistik.")
 
 # ==========================================
 # 4. HALAMAN 1: ANALISIS DESKRIPTIF
 # ==========================================
 if menu == "Analisis Data Deskriptif":
     st.title("Dataset Stunting dan Status Gizi Balita Kabupaten Jeneponto")
-    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang **40.071 balita (usia 0-59 bulan)** dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024.")
+    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang balita (usia 0-59 bulan) dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024. Dari total 40.071 data mentah, komputasi mengeksekusi **40.069 data bersih** setelah mengeleminasi entri dengan observasi kosong (missing values).")
     
-    st.info("**Deklarasi Sumber Data Publik**\n\nData yang disajikan pada sistem ini diambil dari repositori publik dan resmi untuk keperluan penelitian akademis. Anda dapat memverifikasi keabsahan data, struktur variabel, dan profil geografis secara langsung melalui tautan berikut: [Mendeley Data - Dataset Stunting Jeneponto](https://data.mendeley.com/datasets/wzwpc9j5bx/4)")
+    st.info("Deklarasi Sumber Data Publik\n\nData yang disajikan pada sistem ini diambil dari repositori publik dan resmi untuk keperluan penelitian akademis. Anda dapat memverifikasi keabsahan data, struktur variabel, dan profil geografis secara langsung melalui tautan berikut: [Mendeley Data - Dataset Stunting Jeneponto](https://data.mendeley.com/datasets/wzwpc9j5bx/4)")
     
     st.divider()
     st.write("Silakan atur instrumen filter di bawah ini untuk melihat pemetaan tren data secara spesifik.")
@@ -237,7 +242,7 @@ if menu == "Analisis Data Deskriptif":
 # ==========================================
 # 5. HALAMAN 2: PREDIKSI MACHINE LEARNING
 # ==========================================
-elif menu == "Prediksi Machine Learning":
+elif menu == "Prediksi Pembelajaran Mesin":
     st.title("Model Prediksi Probabilistik & Arsitektur Evaluasi")
     st.write("Modul ini mengeksekusi algoritma Logistic Regression berpenalti L1 (Lasso Regression) berdasarkan pembobotan fitur fisik historis.")
     
@@ -318,9 +323,9 @@ elif menu == "Prediksi Machine Learning":
                     st.success(f"KEPUTUSAN KELAS 0 (Negatif) Probabilitas {pred_proba:.1f}%\n\nKomputasi probabilitas pada kurva bawah (threshold < 50%).")
 
 # ==========================================
-# 6. HALAMAN 3: ANALISIS REGRESI DINAMIS
+# 6. HALAMAN 3: UPLOAD MANDIRI
 # ==========================================
-elif menu == "Upload & Uji Data Anda":
+elif menu == "Unggah & Uji Data Anda":
     st.title("Upload dan Analisis Data Mandiri")
     
     st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin akan membaca struktur data Anda dan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih secara independen.")
@@ -333,10 +338,10 @@ elif menu == "Upload & Uji Data Anda":
     col_panduan1, col_panduan2 = st.columns(2)
     
     with col_panduan1:
-        st.info("**Aturan Variabel Target (y)**\n\nKolom yang menjadi target prediksi wajib hanya memiliki dua kategori unik. Anda bisa menggunakan angka 0 dan 1, atau teks biner seperti Ya dan Tidak. Mesin otomatis menolak data jika terdapat tiga klasifikasi atau lebih.")
+        st.info("Aturan Variabel Target (y)\n\nKolom yang menjadi target prediksi wajib hanya memiliki dua kategori unik. Anda bisa menggunakan angka 0 dan 1, atau teks biner seperti Ya dan Tidak. Mesin otomatis menolak data jika terdapat tiga klasifikasi atau lebih.")
         
     with col_panduan2:
-        st.info("**Aturan Variabel Fitur (X)**\n\nSeluruh kolom yang bertindak sebagai faktor prediktor wajib berisi angka numerik murni. Anda perlu mengubah data kategorikal berbentuk teks menjadi angka melalui Excel sebelum mengunggahnya ke dalam sistem.")
+        st.info("Aturan Variabel Fitur (X)\n\nSeluruh kolom yang bertindak sebagai faktor prediktor wajib berisi angka numerik murni. Anda perlu mengubah data kategorikal berbentuk teks menjadi angka melalui Excel sebelum mengunggahnya ke dalam sistem.")
     
     st.write("")
     
@@ -355,6 +360,14 @@ elif menu == "Upload & Uji Data Anda":
     st.divider()
     
     st.markdown("### Unggah Dataset Baru")
+    
+    with st.expander("Pengaturan Format Angka (Opsional)"):
+        format_angka = st.radio(
+            "Jika data Anda terlihat berantakan setelah diunggah, beri tahu mesin format pemisah angka yang Anda gunakan pada file asli",
+            ["Format Standar Internasional (Desimal menggunakan Titik)",
+             "Format Indonesia (Desimal menggunakan Koma)"]
+        )
+        
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
@@ -391,13 +404,27 @@ elif menu == "Upload & Uji Data Anda":
                     df_model = df_user[fitur_x + [target_y]].copy()
                     
                     for col in fitur_x:
+                        if df_model[col].dtype == 'object':
+                            df_model[col] = df_model[col].astype(str).str.replace('Rp', '', regex=False)
+                            df_model[col] = df_model[col].astype(str).str.replace('IDR', '', regex=False)
+                            df_model[col] = df_model[col].astype(str).str.replace('"', '', regex=False)
+                            df_model[col] = df_model[col].astype(str).str.replace("'", '', regex=False)
+                            
+                            if format_angka == "Format Indonesia (Desimal menggunakan Koma)":
+                                df_model[col] = df_model[col].astype(str).str.replace('.', '', regex=False)
+                                df_model[col] = df_model[col].astype(str).str.replace(',', '.', regex=False)
+                            else:
+                                df_model[col] = df_model[col].astype(str).str.replace(',', '', regex=False)
+                                
+                            df_model[col] = df_model[col].astype(str).str.strip()
+                        
                         df_model[col] = pd.to_numeric(df_model[col], errors='coerce')
                     
                     df_model = df_model.dropna()
                     
                     target_unik = df_model[target_y].unique()
                     if len(target_unik) != 2:
-                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data.")
+                        st.error(f"Sistem menolak komputasi. Variabel target '{target_y}' harus berupa kelas biner. Saat ini terdapat {len(target_unik)} nilai unik pada data bersih.")
                     else:
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
