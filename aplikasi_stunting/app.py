@@ -167,8 +167,11 @@ st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balit
 # 4. HALAMAN 1: ANALISIS DESKRIPTIF
 # ==========================================
 if menu == "Analisis Data Deskriptif":
-    st.title("Dataset Stunting dan Status Gizi Balita Kabupaten Jeneponto")
-    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang balita dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024. Dari total 40.071 data mentah, komputasi mengeksekusi data bersih setelah mengeleminasi entri dengan observasi kosong (missing values).")
+    # Menggunakan HTML untuk menarik judul ke atas agar tidak terlalu turun
+    st.markdown("<h1 style='margin-top: -40px;'>Dasbor Stunting dan Status Gizi Balita Kabupaten Jeneponto</h1>", unsafe_allow_html=True)
+    
+    # Kalimat deskripsi yang sudah diperbaiki agar tidak ambigu
+    st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang balita dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024. Sistem secara dinamis memproses dan menampilkan **data bersih**, di mana observasi yang kosong (missing values) dari data mentah asli telah diabaikan secara otomatis oleh mesin komputasi untuk menjaga akurasi perhitungan.")
     
     st.info("Deklarasi Sumber Data Publik\n\nData yang disajikan pada sistem ini diambil dari repositori publik dan resmi untuk keperluan penelitian akademis. Anda dapat memverifikasi keabsahan data, struktur variabel, dan profil geografis secara langsung melalui tautan berikut: [Mendeley Data - Dataset Stunting Jeneponto](https://data.mendeley.com/datasets/wzwpc9j5bx/4)")
     
