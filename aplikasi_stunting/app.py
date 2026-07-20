@@ -343,27 +343,28 @@ elif menu == "Unggah & Uji Data Anda":
     st.divider()
     
     st.markdown("### Konfigurasi Integritas Data")
-    st.write("Anda memiliki kendali atas bagaimana mesin membaca format angka pada dataset Anda untuk mencegah terjadinya bias perhitungan.")
+    st.write("Anda memiliki kendali atas bagaimana mesin membaca angka pada dataset Anda untuk mencegah bias perhitungan.")
     
-    with st.expander("Pengaturan Format Angka dan Pembersihan Otomatis", expanded=True):
-        format_angka = st.radio(
-            "Pilih tingkat campur tangan mesin terhadap data Anda",
-            [
-                "Abaikan (Data sudah bersih dan siap hitung)",
-                "Ubah Koma menjadi Titik Desimal (Abaikan teks/simbol)",
-                "Pembersihan Penuh Internasional (Hapus semua teks/simbol, Titik sebagai desimal)",
-                "Pembersihan Penuh Indonesia (Hapus semua teks/simbol, Koma sebagai desimal)"
-            ]
-        )
+    with st.expander("Pengaturan Format Angka dan Pembersihan", expanded=True):
+        col_set1, col_set2 = st.columns(2)
         
-        if format_angka == "Abaikan (Data sudah bersih dan siap hitung)":
-            st.info("Status Fitur Pembersih DIMATIKAN. Mesin tidak akan menyentuh menghapus teks atau mengubah format desimal Anda sama sekali.")
-        elif format_angka == "Ubah Koma menjadi Titik Desimal (Abaikan teks/simbol)":
-            st.warning("Status Fitur Pembersih Teks DIMATIKAN. Mesin tidak akan membuang teks, tetapi mesin akan mengubah semua tanda Koma menjadi Titik agar terbaca sebagai desimal.")
-        elif format_angka == "Pembersihan Penuh Internasional (Hapus semua teks/simbol, Titik sebagai desimal)":
-            st.success("Status Pembersih AKTIF PENUH. Mesin akan menghapus paksa semua teks/simbol. Tanda Koma akan dianggap sebagai pemisah ribuan lalu dibuang dan tanda Titik dipertahankan sebagai desimal.")
+        with col_set1:
+            format_desimal = st.radio(
+                "1. Pilih Format Desimal:",
+                ["Titik (.)", "Koma (,)"]
+            )
+            
+        with col_set2:
+            st.write("2. Fitur Pembersih Otomatis:")
+            aktifkan_pembersih = st.checkbox("Aktifkan Pembersih Teks/Simbol", value=False)
+            
+        st.divider()
+        
+        # Penjelasan Dinamis di bawah opsi (Lebih Rapi)
+        if not aktifkan_pembersih:
+            st.info(f"**Info Status:** Mesin hanya akan menyesuaikan desimal menggunakan **{format_desimal}**. Mesin TIDAK akan membuang teks, spasi, atau simbol. Jika data Anda mengandung huruf (misal: 'Rp 50'), data tersebut akan diabaikan/digugurkan.")
         else:
-            st.success("Status Pembersih AKTIF PENUH. Mesin akan menghapus paksa semua teks/simbol. Tanda Titik akan dianggap sebagai pemisah ribuan lalu dibuang dan tanda Koma akan diubah menjadi Titik sebagai desimal.")
+            st.warning(f"**Info Status:** Fitur Pembersih **AKTIF**. Mesin akan menghapus paksa semua teks dan simbol pada dataset, lalu mengatur angka desimal menggunakan **{format_desimal}**.")
 
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
@@ -396,40 +397,32 @@ elif menu == "Unggah & Uji Data Anda":
                     
                     import re
                     
-                    def bersihkan_berdasarkan_pilihan(val, mode):
+                    # Logika Pembersihan yang Terpisah dan Independen
+                    def bersihkan_angka_kustom(val, desimal_pilihan, mode_pembersih):
                         if pd.isna(val): return val
                         if isinstance(val, datetime.datetime): return val.day + (val.month / 10.0)
                         
                         val_str = str(val).strip()
                         
-                        # Opsi 1: Abaikan
-                        if mode == "Abaikan (Data sudah bersih dan siap hitung)":
-                            try: return float(val_str)
-                            except: return None
-                                
-                        # Opsi 2: Hanya ubah Koma jadi Titik Desimal, jangan hapus teks
-                        if mode == "Ubah Koma menjadi Titik Desimal (Abaikan teks/simbol)":
-                            val_str = val_str.replace(',', '.')
-                            try: return float(val_str)
-                            except: return None 
+                        # 1. Jika Pembersih Teks Aktif
+                        if mode_pembersih:
+                            # Hapus semua karakter kecuali angka, titik, koma, dan minus
+                            val_str = re.sub(r'[^0-9.,-]', '', val_str)
+                            if not val_str: return None
                         
-                        # Opsi 3 & 4: Sikat Habis (Buang teks & simbol)
-                        val_str = re.sub(r'[^0-9.,-]', '', val_str) 
-                        
-                        if not val_str: return None
-                            
-                        # Opsi 4: Pembersihan Indonesia (Koma sebagai desimal)
-                        if mode == "Pembersihan Penuh Indonesia (Hapus semua teks/simbol, Koma sebagai desimal)":
+                        # 2. Aturan Desimal
+                        if desimal_pilihan == "Koma (,)":
+                            # Titik dianggap ribuan (hapus), Koma diubah jadi desimal
                             val_str = val_str.replace('.', '').replace(',', '.')
-                        # Opsi 3: Pembersihan Internasional (Titik sebagai desimal)
-                        elif mode == "Pembersihan Penuh Internasional (Hapus semua teks/simbol, Titik sebagai desimal)":
+                        else: # Titik (.)
+                            # Koma dianggap ribuan (hapus), Titik tetap desimal
                             val_str = val_str.replace(',', '')
                             
                         try: return float(val_str)
                         except: return None
 
                     for col in fitur_x:
-                        df_model[col] = df_model[col].apply(lambda x: bersihkan_berdasarkan_pilihan(x, format_angka))
+                        df_model[col] = df_model[col].apply(lambda x: bersihkan_angka_kustom(x, format_desimal, aktifkan_pembersih))
                     
                     baris_awal = len(df_model)
                     df_model = df_model.dropna()
@@ -445,7 +438,7 @@ elif menu == "Unggah & Uji Data Anda":
                         st.divider()
                         
                         if baris_awal != baris_akhir:
-                            st.warning(f"Laporan Integritas Data Komputasi berhasil, namun sebanyak **{baris_awal - baris_akhir} baris data** terpaksa diabaikan (dibuang) karena formatnya tidak valid (mengandung sel kosong atau gagal dikonversi menjadi angka murni dengan aturan yang Anda pilih).")
+                            st.warning(f"Laporan Integritas Data: Komputasi berhasil, namun sebanyak **{baris_awal - baris_akhir} baris data** terpaksa diabaikan (dibuang) karena formatnya tidak valid atau gagal dikonversi menjadi angka murni dengan aturan yang Anda tetapkan.")
                             
                         st.markdown(f"### Analisis Deskriptif Visual (Data Bersih: {baris_akhir:,} Baris)")
                         
