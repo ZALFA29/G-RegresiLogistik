@@ -339,7 +339,7 @@ elif menu == "Prediksi Machine Learning":
 elif menu == "Unggah & Uji Data Anda":
     st.title("Upload dan Analisis Data Mandiri")
     
-    st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin akan membaca struktur data Anda dan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih secara independen.")
+    st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin otomatis akan membaca, membersihkan anomali pada data, dan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih.")
     
     st.divider()
     
@@ -349,36 +349,29 @@ elif menu == "Unggah & Uji Data Anda":
     col_panduan1, col_panduan2 = st.columns(2)
     
     with col_panduan1:
-        st.info("Aturan Variabel Target (y)\n\nKolom yang menjadi target prediksi wajib hanya memiliki dua kategori unik. Anda bisa menggunakan angka 0 dan 1, atau teks biner seperti Ya dan Tidak. Mesin otomatis menolak data jika terdapat tiga klasifikasi atau lebih.")
+        st.info("Aturan Variabel Target (y)\n\nKolom target wajib hanya memiliki tepat dua kategori unik (Biner). Bisa berupa angka (0 dan 1) atau teks (misalnya 'Ya' dan 'Tidak'). Mesin otomatis mengubah teks menjadi format biner.")
         
     with col_panduan2:
-        st.info("Aturan Variabel Fitur (X)\n\nSeluruh kolom yang bertindak sebagai faktor prediktor wajib berisi angka numerik murni. Anda perlu mengubah data kategorikal berbentuk teks menjadi angka melalui Excel sebelum mengunggahnya ke dalam sistem.")
+        st.info("Aturan Variabel Fitur (X)\n\nSeluruh kolom prediktor wajib berisi angka numerik murni. Jika data Anda berantakan (ada simbol mata uang, spasi, atau menggunakan koma desimal), silakan gunakan fitur Pengaturan Format Angka di bawah ini.")
     
     st.write("")
     
-    st.markdown("### Pratinjau Format Data Ideal")
-    st.write("Tabel di bawah ini menampilkan contoh struktur dataset yang siap dan ideal untuk diproses. Perhatikan bahwa seluruh kolom prediktor telah terisi dengan format angka, dan kolom target pada bagian paling kanan telah disederhanakan menjadi format biner.")
-    
-    contoh_data_dinamis = pd.DataFrame({
-        "Usia_Bulan": [24, 36, 12, 48, 59],
-        "Berat_Badan_Kg": [10.5, 14.2, 8.0, 16.5, 19.0],
-        "Tinggi_Badan_Cm": [85.0, 95.5, 72.0, 105.0, 110.0],
-        "Status_Kelas_Target": [1, 0, 1, 0, 0]
-    })
-    
-    st.dataframe(contoh_data_dinamis, use_container_width=True, hide_index=True)
-    
-    st.divider()
-    
-    st.markdown("### Unggah Dataset Baru")
-    
-    with st.expander("Pengaturan Format Angka (Opsional)"):
+    with st.expander("Pengaturan Format Angka & Pembersihan Data (Opsional)", expanded=True):
         format_angka = st.radio(
-            "Jika data Anda terlihat berantakan setelah diunggah, beri tahu mesin format pemisah angka yang Anda gunakan pada file asli",
-            ["Format Standar Internasional (Desimal menggunakan Titik)",
-             "Format Indonesia (Desimal menggunakan Koma)"]
+            "Pilih bagaimana sistem harus memperlakukan angka pada dataset Anda:",
+            ["Abaikan (Data sudah bersih/rapi)",
+             "Format Standar Internasional (Bersihkan simbol, Titik = Desimal)",
+             "Format Indonesia (Bersihkan simbol, Koma = Desimal)"]
         )
         
+        # Penjelasan dinamis berdasarkan pilihan pengguna
+        if format_angka == "Abaikan (Data sudah bersih/rapi)":
+            st.info("💡 **Penjelasan Logika Pembersih:** Sistem dimatikan dan akan membaca data 'apa adanya'. Tidak ada simbol yang dihapus atau pemisah angka yang diubah. Gunakan opsi ini jika data Anda sudah berupa angka murni yang rapi.")
+        elif format_angka == "Format Standar Internasional (Bersihkan simbol, Titik = Desimal)":
+            st.info("💡 **Penjelasan Logika Pembersih Otomatis:** Sistem akan menghapus semua huruf (Rp, IDR, dll) dan tanda kutip. Koma akan dianggap sebagai pemisah ribuan (dan dibuang), sedangkan Titik akan dipertahankan sebagai desimal.")
+        else:
+            st.info("💡 **Penjelasan Logika Pembersih Otomatis:** Sistem akan menghapus semua huruf (Rp, IDR, dll) dan tanda kutip. Titik akan dianggap sebagai pemisah ribuan (dan dibuang), sedangkan Koma akan otomatis diubah menjadi Titik agar dapat dihitung sebagai desimal oleh mesin.")
+            
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
@@ -388,12 +381,8 @@ elif menu == "Unggah & Uji Data Anda":
             else:
                 df_user = pd.read_excel(uploaded_file)
                 
-            st.success("File berhasil dibaca oleh sistem. Berikut adalah cuplikan data Anda")
+            st.success("File berhasil dibaca oleh sistem. Berikut adalah cuplikan data Anda:")
             st.dataframe(df_user.head(), use_container_width=True)
-            
-            st.markdown("### Deskripsi Statistik Data")
-            st.write("Tabel di bawah ini menampilkan ringkasan kalkulasi statistik (jumlah, rata-rata, nilai minimum, dan maksimum) dari seluruh kolom numerik pada dataset Anda.")
-            st.dataframe(df_user.describe(), use_container_width=True)
             
             st.divider()
             st.markdown("### Konfigurasi Variabel Algoritma")
@@ -414,22 +403,40 @@ elif menu == "Unggah & Uji Data Anda":
                 else:
                     df_model = df_user[fitur_x + [target_y]].copy()
                     
-                    for col in fitur_x:
-                        if df_model[col].dtype == 'object':
-                            df_model[col] = df_model[col].astype(str).str.replace('Rp', '', regex=False)
-                            df_model[col] = df_model[col].astype(str).str.replace('IDR', '', regex=False)
-                            df_model[col] = df_model[col].astype(str).str.replace('"', '', regex=False)
-                            df_model[col] = df_model[col].astype(str).str.replace("'", '', regex=False)
+                    import re
+                    
+                    def bersihkan_berdasarkan_pilihan(val, mode):
+                        if pd.isna(val):
+                            return val
                             
-                            if format_angka == "Format Indonesia (Desimal menggunakan Koma)":
-                                df_model[col] = df_model[col].astype(str).str.replace('.', '', regex=False)
-                                df_model[col] = df_model[col].astype(str).str.replace(',', '.', regex=False)
-                            else:
-                                df_model[col] = df_model[col].astype(str).str.replace(',', '', regex=False)
+                        if isinstance(val, datetime.datetime):
+                             return val.day + (val.month / 10.0)
+                             
+                        if mode == "Abaikan (Data sudah bersih/rapi)":
+                            try:
+                                return float(val)
+                            except:
+                                return None
                                 
-                            df_model[col] = df_model[col].astype(str).str.strip()
+                        val_str = str(val).strip()
+                        val_str = re.sub(r'[^0-9.,-]', '', val_str)
                         
-                        df_model[col] = pd.to_numeric(df_model[col], errors='coerce')
+                        if not val_str:
+                            return None
+                            
+                        if mode == "Format Indonesia (Bersihkan simbol, Koma = Desimal)":
+                            val_str = val_str.replace('.', '') 
+                            val_str = val_str.replace(',', '.') 
+                        else:
+                            val_str = val_str.replace(',', '')
+                            
+                        try:
+                            return float(val_str)
+                        except:
+                            return None
+
+                    for col in fitur_x:
+                        df_model[col] = df_model[col].apply(lambda x: bersihkan_berdasarkan_pilihan(x, format_angka))
                     
                     df_model = df_model.dropna()
                     
@@ -440,9 +447,8 @@ elif menu == "Unggah & Uji Data Anda":
                         if not pd.api.types.is_numeric_dtype(df_model[target_y]):
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
                             
-                        # === PENAMBAHAN ANALISIS DESKRIPTIF ===
                         st.divider()
-                        st.markdown(f"### Analisis Deskriptif Visual (Data: {len(df_model):,} Baris)")
+                        st.markdown(f"### Analisis Deskriptif Visual (Data Bersih: {len(df_model):,} Baris)")
                         
                         col_desc1, col_desc2 = st.columns(2)
                         with col_desc1:
@@ -451,7 +457,6 @@ elif menu == "Unggah & Uji Data Anda":
                             st.plotly_chart(fig_pie_dyn, use_container_width=True)
                             
                         with col_desc2:
-                            # Menampilkan distribusi dari variabel fitur pertama yang dipilih pengguna
                             fitur_utama = fitur_x[0]
                             fig_hist_dyn = px.histogram(df_model, x=fitur_utama, color=target_y, barmode='group', title=f'Distribusi Fitur: {fitur_utama}', color_discrete_sequence=px.colors.qualitative.Pastel)
                             fig_hist_dyn.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
@@ -498,7 +503,7 @@ elif menu == "Unggah & Uji Data Anda":
                             st.plotly_chart(fig_roc_dyn, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah {e}")
+            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah: {e}")
 
 # Footer
 st.sidebar.divider()
