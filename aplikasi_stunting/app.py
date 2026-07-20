@@ -339,39 +339,32 @@ elif menu == "Prediksi Machine Learning":
 elif menu == "Unggah & Uji Data Anda":
     st.title("Upload dan Analisis Data Mandiri")
     
-    st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin otomatis akan membaca, membersihkan anomali pada data, dan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih.")
-    
+    st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin akan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih.")
     st.divider()
     
-    st.markdown("### Panduan Persiapan Data")
-    st.write("Pastikan dataset yang akan diunggah telah memenuhi standar komputasi mesin dengan memperhatikan dua aturan dasar di bawah ini.")
+    st.markdown("### Konfigurasi Integritas Data")
+    st.write("Anda memiliki kendali atas bagaimana mesin membaca format angka pada dataset Anda untuk mencegah terjadinya bias perhitungan.")
     
-    col_panduan1, col_panduan2 = st.columns(2)
-    
-    with col_panduan1:
-        st.info("Aturan Variabel Target (y)\n\nKolom target wajib hanya memiliki tepat dua kategori unik (Biner). Bisa berupa angka (0 dan 1) atau teks (misalnya 'Ya' dan 'Tidak'). Mesin otomatis mengubah teks menjadi format biner.")
-        
-    with col_panduan2:
-        st.info("Aturan Variabel Fitur (X)\n\nSeluruh kolom prediktor wajib berisi angka numerik murni. Jika data Anda berantakan (ada simbol mata uang, spasi, atau menggunakan koma desimal), silakan gunakan fitur Pengaturan Format Angka di bawah ini.")
-    
-    st.write("")
-    
-    with st.expander("Pengaturan Format Angka & Pembersihan Data (Opsional)", expanded=True):
+    with st.expander("Pengaturan Format Angka dan Pembersihan Otomatis", expanded=True):
         format_angka = st.radio(
-            "Pilih bagaimana sistem harus memperlakukan angka pada dataset Anda:",
-            ["Abaikan (Data sudah bersih/rapi)",
-             "Format Standar Internasional (Bersihkan simbol, Titik = Desimal)",
-             "Format Indonesia (Bersihkan simbol, Koma = Desimal)"]
+            "Pilih tingkat campur tangan mesin terhadap data Anda",
+            [
+                "Abaikan (Data sudah bersih dan siap hitung)",
+                "Ubah Koma menjadi Titik Desimal (Abaikan teks/simbol)",
+                "Pembersihan Penuh Internasional (Hapus semua teks/simbol, Titik sebagai desimal)",
+                "Pembersihan Penuh Indonesia (Hapus semua teks/simbol, Koma sebagai desimal)"
+            ]
         )
         
-        # Penjelasan dinamis berdasarkan pilihan pengguna
-        if format_angka == "Abaikan (Data sudah bersih/rapi)":
-            st.info("💡 **Penjelasan Logika Pembersih:** Sistem dimatikan dan akan membaca data 'apa adanya'. Tidak ada simbol yang dihapus atau pemisah angka yang diubah. Gunakan opsi ini jika data Anda sudah berupa angka murni yang rapi.")
-        elif format_angka == "Format Standar Internasional (Bersihkan simbol, Titik = Desimal)":
-            st.info("💡 **Penjelasan Logika Pembersih Otomatis:** Sistem akan menghapus semua huruf (Rp, IDR, dll) dan tanda kutip. Koma akan dianggap sebagai pemisah ribuan (dan dibuang), sedangkan Titik akan dipertahankan sebagai desimal.")
+        if format_angka == "Abaikan (Data sudah bersih dan siap hitung)":
+            st.info("Status Fitur Pembersih DIMATIKAN. Mesin tidak akan menyentuh menghapus teks atau mengubah format desimal Anda sama sekali.")
+        elif format_angka == "Ubah Koma menjadi Titik Desimal (Abaikan teks/simbol)":
+            st.warning("Status Fitur Pembersih Teks DIMATIKAN. Mesin tidak akan membuang teks, tetapi mesin akan mengubah semua tanda Koma menjadi Titik agar terbaca sebagai desimal.")
+        elif format_angka == "Pembersihan Penuh Internasional (Hapus semua teks/simbol, Titik sebagai desimal)":
+            st.success("Status Pembersih AKTIF PENUH. Mesin akan menghapus paksa semua teks/simbol. Tanda Koma akan dianggap sebagai pemisah ribuan lalu dibuang dan tanda Titik dipertahankan sebagai desimal.")
         else:
-            st.info("💡 **Penjelasan Logika Pembersih Otomatis:** Sistem akan menghapus semua huruf (Rp, IDR, dll) dan tanda kutip. Titik akan dianggap sebagai pemisah ribuan (dan dibuang), sedangkan Koma akan otomatis diubah menjadi Titik agar dapat dihitung sebagai desimal oleh mesin.")
-            
+            st.success("Status Pembersih AKTIF PENUH. Mesin akan menghapus paksa semua teks/simbol. Tanda Titik akan dianggap sebagai pemisah ribuan lalu dibuang dan tanda Koma akan diubah menjadi Titik sebagai desimal.")
+
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
@@ -381,13 +374,11 @@ elif menu == "Unggah & Uji Data Anda":
             else:
                 df_user = pd.read_excel(uploaded_file)
                 
-            st.success("File berhasil dibaca oleh sistem. Berikut adalah cuplikan data Anda:")
+            st.success("File berhasil dibaca. Silakan konfigurasi variabel di bawah.")
             st.dataframe(df_user.head(), use_container_width=True)
             
             st.divider()
             st.markdown("### Konfigurasi Variabel Algoritma")
-            st.write("Silakan tentukan kolom yang akan bertindak sebagai faktor penyebab (Fitur) dan kolom yang menjadi hasil prediksi (Target).")
-            
             kolom_tersedia = df_user.columns.tolist()
             
             col_target, col_fitur = st.columns([1, 2])
@@ -397,48 +388,52 @@ elif menu == "Unggah & Uji Data Anda":
                 pilihan_fitur = [k for k in kolom_tersedia if k != target_y]
                 fitur_x = st.multiselect("Pilih Variabel Fitur (X)", pilihan_fitur)
                 
-            if st.button("Latih Model Sekarang"):
+            if st.button("Eksekusi Model Machine Learning"):
                 if not fitur_x:
-                    st.error("Gagal memulai komputasi. Anda wajib memilih minimal satu variabel fitur (X).")
+                    st.error("Wajib pilih minimal satu variabel fitur (X).")
                 else:
                     df_model = df_user[fitur_x + [target_y]].copy()
                     
                     import re
                     
                     def bersihkan_berdasarkan_pilihan(val, mode):
-                        if pd.isna(val):
-                            return val
-                            
-                        if isinstance(val, datetime.datetime):
-                             return val.day + (val.month / 10.0)
-                             
-                        if mode == "Abaikan (Data sudah bersih/rapi)":
-                            try:
-                                return float(val)
-                            except:
-                                return None
-                                
-                        val_str = str(val).strip()
-                        val_str = re.sub(r'[^0-9.,-]', '', val_str)
+                        if pd.isna(val): return val
+                        if isinstance(val, datetime.datetime): return val.day + (val.month / 10.0)
                         
-                        if not val_str:
-                            return None
+                        val_str = str(val).strip()
+                        
+                        # Opsi 1: Abaikan
+                        if mode == "Abaikan (Data sudah bersih dan siap hitung)":
+                            try: return float(val_str)
+                            except: return None
+                                
+                        # Opsi 2: Hanya ubah Koma jadi Titik Desimal, jangan hapus teks
+                        if mode == "Ubah Koma menjadi Titik Desimal (Abaikan teks/simbol)":
+                            val_str = val_str.replace(',', '.')
+                            try: return float(val_str)
+                            except: return None 
+                        
+                        # Opsi 3 & 4: Sikat Habis (Buang teks & simbol)
+                        val_str = re.sub(r'[^0-9.,-]', '', val_str) 
+                        
+                        if not val_str: return None
                             
-                        if mode == "Format Indonesia (Bersihkan simbol, Koma = Desimal)":
-                            val_str = val_str.replace('.', '') 
-                            val_str = val_str.replace(',', '.') 
-                        else:
+                        # Opsi 4: Pembersihan Indonesia (Koma sebagai desimal)
+                        if mode == "Pembersihan Penuh Indonesia (Hapus semua teks/simbol, Koma sebagai desimal)":
+                            val_str = val_str.replace('.', '').replace(',', '.')
+                        # Opsi 3: Pembersihan Internasional (Titik sebagai desimal)
+                        elif mode == "Pembersihan Penuh Internasional (Hapus semua teks/simbol, Titik sebagai desimal)":
                             val_str = val_str.replace(',', '')
                             
-                        try:
-                            return float(val_str)
-                        except:
-                            return None
+                        try: return float(val_str)
+                        except: return None
 
                     for col in fitur_x:
                         df_model[col] = df_model[col].apply(lambda x: bersihkan_berdasarkan_pilihan(x, format_angka))
                     
+                    baris_awal = len(df_model)
                     df_model = df_model.dropna()
+                    baris_akhir = len(df_model)
                     
                     target_unik = df_model[target_y].unique()
                     if len(target_unik) != 2:
@@ -448,7 +443,11 @@ elif menu == "Unggah & Uji Data Anda":
                             df_model[target_y] = pd.Categorical(df_model[target_y]).codes
                             
                         st.divider()
-                        st.markdown(f"### Analisis Deskriptif Visual (Data Bersih: {len(df_model):,} Baris)")
+                        
+                        if baris_awal != baris_akhir:
+                            st.warning(f"Laporan Integritas Data Komputasi berhasil, namun sebanyak **{baris_awal - baris_akhir} baris data** terpaksa diabaikan (dibuang) karena formatnya tidak valid (mengandung sel kosong atau gagal dikonversi menjadi angka murni dengan aturan yang Anda pilih).")
+                            
+                        st.markdown(f"### Analisis Deskriptif Visual (Data Bersih: {baris_akhir:,} Baris)")
                         
                         col_desc1, col_desc2 = st.columns(2)
                         with col_desc1:
@@ -503,7 +502,7 @@ elif menu == "Unggah & Uji Data Anda":
                             st.plotly_chart(fig_roc_dyn, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah: {e}")
+            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah {e}")
 
 # Footer
 st.sidebar.divider()
