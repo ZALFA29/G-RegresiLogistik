@@ -395,7 +395,7 @@ elif menu == "Unggah & Uji Data Anda":
 
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
-    if uploaded_file is not None:
+   if uploaded_file is not None:
         try:
             # Baca file
             if uploaded_file.name.endswith('.csv'):
@@ -403,18 +403,13 @@ elif menu == "Unggah & Uji Data Anda":
             else:
                 df_user = pd.read_excel(uploaded_file)
                 
-                # FITUR PENYELAMAT EXCEL (Mencegah data menumpuk akibat copy-paste)
+                # Validasi Tegas: Cegah data Excel yang menumpuk di 1 kolom
                 if len(df_user.columns) == 1:
-                    kolom_tunggal = df_user.columns[0]
-                    if ',' in str(kolom_tunggal) or ';' in str(kolom_tunggal):
-                        st.warning(" Sistem mendeteksi data Anda menumpuk di dalam 1 kolom (kemungkinan akibat *copy-paste* teks mentah ke Excel). Mesin otomatis membelah dan memisahkannya menjadi beberapa kolom yang benar sebelum dianalisis.")
-                        
-                        # Ekstrak data mentah dan proses ulang tanpa tanda kutip ganda dari Pandas
-                        raw_lines = [str(kolom_tunggal)] + df_user.iloc[:, 0].astype(str).tolist()
-                        raw_csv_text = "\n".join(raw_lines)
-                        
-                        # Baca ulang menggunakan pemisah koma, quotechar mengamankan tanda kutip di dalam data
-                        df_user = pd.read_csv(io.StringIO(raw_csv_text), sep=',', quotechar='"', skipinitialspace=True)
+                    kolom_tunggal = str(df_user.columns[0])
+                    if ',' in kolom_tunggal or ';' in kolom_tunggal:
+                        st.error("Sistem menolak komputasi. Format file Excel (.xlsx) Anda tidak valid karena seluruh data menumpuk di dalam satu kolom.")
+                        st.info("Panduan Solusi: Masalah ini terjadi karena teks mentah disalin langsung ke Excel. Silakan simpan ulang data Anda menggunakan format **.csv**, atau rapikan kolomnya secara manual sebelum mengunggah kembali.")
+                        st.stop() # Menghentikan proses secara otomatis
                 
             st.success("File berhasil dibaca. Silakan konfigurasi variabel di bawah.")
             st.dataframe(df_user.head(), use_container_width=True)
@@ -436,19 +431,18 @@ elif menu == "Unggah & Uji Data Anda":
                 else:
                     df_model = df_user[fitur_x + [target_y]].copy()
                     
+                    import re
+                    
                     def bersihkan_angka_kustom(val, desimal_pilihan, mode_pembersih):
                         if pd.isna(val): return val
                         if isinstance(val, datetime.datetime): return val.day + (val.month / 10.0)
                         
                         val_str = str(val).strip()
                         
-                        # Jika Pembersih Teks Aktif
                         if mode_pembersih:
-                            # Hapus semua karakter kecuali angka, titik, koma, dan minus
                             val_str = re.sub(r'[^0-9.,-]', '', val_str)
                             if not val_str: return None
                         
-                        # Aturan Desimal
                         if desimal_pilihan == "Koma (,)":
                             val_str = val_str.replace('.', '').replace(',', '.')
                         else: 
@@ -457,7 +451,6 @@ elif menu == "Unggah & Uji Data Anda":
                         try: return float(val_str)
                         except: return None
 
-                    # Terapkan pembersihan
                     for col in fitur_x:
                         df_model[col] = df_model[col].apply(lambda x: bersihkan_angka_kustom(x, format_desimal, aktifkan_pembersih))
                     
@@ -491,7 +484,6 @@ elif menu == "Unggah & Uji Data Anda":
                             fig_hist_dyn.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
                             st.plotly_chart(fig_hist_dyn, use_container_width=True)
                         
-                        # === PROSES MACHINE LEARNING ===
                         X_dyn = df_model[fitur_x]
                         y_dyn = df_model[target_y]
                         
