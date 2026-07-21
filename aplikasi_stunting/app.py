@@ -407,7 +407,7 @@ elif menu == "Unggah & Uji Data Anda":
                 if len(df_user.columns) == 1:
                     kolom_tunggal = df_user.columns[0]
                     if ',' in str(kolom_tunggal) or ';' in str(kolom_tunggal):
-                        st.warning("⚠️ Sistem mendeteksi data Anda menumpuk di dalam 1 kolom (kemungkinan akibat *copy-paste* teks mentah ke Excel). Mesin otomatis membelah dan memisahkannya menjadi beberapa kolom yang benar sebelum dianalisis.")
+                        st.warning(" Sistem mendeteksi data Anda menumpuk di dalam 1 kolom (kemungkinan akibat *copy-paste* teks mentah ke Excel). Mesin otomatis membelah dan memisahkannya menjadi beberapa kolom yang benar sebelum dianalisis.")
                         
                         # Ekstrak data mentah dan proses ulang tanpa tanda kutip ganda dari Pandas
                         raw_lines = [str(kolom_tunggal)] + df_user.iloc[:, 0].astype(str).tolist()
