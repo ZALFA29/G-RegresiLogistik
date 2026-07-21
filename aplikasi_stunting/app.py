@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import datetime
 import os
+import re
+import io
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -167,10 +169,8 @@ st.sidebar.info("Sistem ini dibangun untuk menganalisis status pertumbuhan balit
 # 4. HALAMAN 1: ANALISIS DESKRIPTIF
 # ==========================================
 if menu == "Analisis Data Deskriptif":
-    # Menggunakan HTML untuk menarik judul ke atas agar tidak terlalu turun
     st.markdown("<h1 style='margin-top: -40px;'>Dasbor Stunting dan Status Gizi Balita Kabupaten Jeneponto</h1>", unsafe_allow_html=True)
     
-    # Kalimat deskripsi yang sudah diperbaiki agar tidak ambigu
     st.markdown("Dashboard ini menampilkan visualisasi data antropometri dan demografi komprehensif tentang balita dari Kabupaten Jeneponto, Sulawesi Selatan, Indonesia yang dikumpulkan antara tahun 2021 hingga 2024. Sistem secara dinamis memproses dan menampilkan **data bersih**, di mana observasi yang kosong (missing values) dari data mentah asli telah diabaikan secara otomatis oleh mesin komputasi untuk menjaga akurasi perhitungan.")
     
     st.info("Deklarasi Sumber Data Publik\n\nData yang disajikan pada sistem ini diambil dari repositori publik dan resmi untuk keperluan penelitian akademis. Anda dapat memverifikasi keabsahan data, struktur variabel, dan profil geografis secara langsung melalui tautan berikut: [Mendeley Data - Dataset Stunting Jeneponto](https://data.mendeley.com/datasets/wzwpc9j5bx/4)")
@@ -342,6 +342,34 @@ elif menu == "Unggah & Uji Data Anda":
     st.markdown("Fitur interaktif ini memfasilitasi Anda untuk mengunggah dan menguji dataset milik Anda sendiri. Mesin akan mengeksekusi proses klasifikasi biner berdasarkan variabel yang Anda pilih.")
     st.divider()
     
+    # --- BAGIAN PANDUAN & CONTOH DATA YANG DIKEMBALIKAN ---
+    st.markdown("### Panduan Persiapan Data")
+    st.write("Pastikan dataset yang akan diunggah telah memenuhi standar komputasi mesin dengan memperhatikan dua aturan dasar di bawah ini.")
+    
+    col_panduan1, col_panduan2 = st.columns(2)
+    
+    with col_panduan1:
+        st.info("Aturan Variabel Target (y)\n\nKolom yang menjadi target prediksi wajib hanya memiliki tepat dua kategori unik (Biner). Anda bisa menggunakan angka 0 dan 1, atau teks seperti 'Lulus' dan 'Tidak Lulus'. Mesin otomatis menolak data jika terdapat tiga klasifikasi atau lebih.")
+        
+    with col_panduan2:
+        st.info("Aturan Variabel Fitur (X)\n\nKolom prediktor idealnya berisi angka. Namun, jika data Anda berantakan (ada spasi, simbol mata uang, kutip, dll), Anda dapat menggunakan fitur *Pembersih Otomatis* di bawah agar mesin menyulapnya menjadi angka murni.")
+    
+    st.write("")
+    
+    st.markdown("### Pratinjau Format Data Ideal")
+    st.write("Tabel di bawah ini menampilkan contoh struktur dataset yang siap dan ideal untuk diproses. Perhatikan bahwa seluruh kolom prediktor telah terisi dengan format yang konsisten, dan kolom target pada bagian paling kanan berisi klasifikasi biner.")
+    
+    contoh_data_dinamis = pd.DataFrame({
+        "Usia_Bulan": [24, 36, 12, 48, 59],
+        "Berat_Badan_Kg": [10.5, 14.2, 8.0, 16.5, 19.0],
+        "Tinggi_Badan_Cm": [85.0, 95.5, 72.0, 105.0, 110.0],
+        "Status_Kelas_Target": ["Stunting", "Normal", "Stunting", "Normal", "Normal"]
+    })
+    
+    st.dataframe(contoh_data_dinamis, use_container_width=True, hide_index=True)
+    st.divider()
+    # --- AKHIR BAGIAN PANDUAN ---
+
     st.markdown("### Konfigurasi Integritas Data")
     st.write("Anda memiliki kendali atas bagaimana mesin membaca angka pada dataset Anda untuk mencegah bias perhitungan.")
     
@@ -360,20 +388,33 @@ elif menu == "Unggah & Uji Data Anda":
             
         st.divider()
         
-        # Penjelasan Dinamis di bawah opsi (Lebih Rapi)
         if not aktifkan_pembersih:
-            st.info(f"**Info Status:** Mesin hanya akan menyesuaikan desimal menggunakan **{format_desimal}**. Mesin TIDAK akan membuang teks, spasi, atau simbol. Jika data Anda mengandung huruf (misal: 'Rp 50'), data tersebut akan diabaikan/digugurkan.")
+            st.info(f"Info Status: Mesin hanya akan menyesuaikan desimal menggunakan **{format_desimal}**. Mesin TIDAK akan membuang teks, spasi, atau simbol. Jika data Anda mengandung huruf (misal: 'Rp 50'), baris data tersebut akan diabaikan.")
         else:
-            st.warning(f"**Info Status:** Fitur Pembersih **AKTIF**. Mesin akan menghapus paksa semua teks dan simbol pada dataset, lalu mengatur angka desimal menggunakan **{format_desimal}**.")
+            st.warning(f"Info Status: Fitur Pembersih **AKTIF**. Mesin akan menghapus paksa semua teks, tanda kutip, dan simbol pada dataset, lalu mengatur angka desimal menggunakan **{format_desimal}**.")
 
     uploaded_file = st.file_uploader("Seret dan lepaskan file Excel atau CSV ke area ini", type=['xlsx', 'csv'])
     
     if uploaded_file is not None:
         try:
+            # Baca file
             if uploaded_file.name.endswith('.csv'):
-                df_user = pd.read_csv(uploaded_file)
+                df_user = pd.read_csv(uploaded_file, sep=None, engine='python')
             else:
                 df_user = pd.read_excel(uploaded_file)
+                
+                # FITUR PENYELAMAT EXCEL (Mencegah data menumpuk akibat copy-paste)
+                if len(df_user.columns) == 1:
+                    kolom_tunggal = df_user.columns[0]
+                    if ',' in str(kolom_tunggal) or ';' in str(kolom_tunggal):
+                        st.warning("⚠️ Sistem mendeteksi data Anda menumpuk di dalam 1 kolom (kemungkinan akibat *copy-paste* teks mentah ke Excel). Mesin otomatis membelah dan memisahkannya menjadi beberapa kolom yang benar sebelum dianalisis.")
+                        
+                        # Ekstrak data mentah dan proses ulang tanpa tanda kutip ganda dari Pandas
+                        raw_lines = [str(kolom_tunggal)] + df_user.iloc[:, 0].astype(str).tolist()
+                        raw_csv_text = "\n".join(raw_lines)
+                        
+                        # Baca ulang menggunakan pemisah koma, quotechar mengamankan tanda kutip di dalam data
+                        df_user = pd.read_csv(io.StringIO(raw_csv_text), sep=',', quotechar='"', skipinitialspace=True)
                 
             st.success("File berhasil dibaca. Silakan konfigurasi variabel di bawah.")
             st.dataframe(df_user.head(), use_container_width=True)
@@ -395,32 +436,28 @@ elif menu == "Unggah & Uji Data Anda":
                 else:
                     df_model = df_user[fitur_x + [target_y]].copy()
                     
-                    import re
-                    
-                    # Logika Pembersihan yang Terpisah dan Independen
                     def bersihkan_angka_kustom(val, desimal_pilihan, mode_pembersih):
                         if pd.isna(val): return val
                         if isinstance(val, datetime.datetime): return val.day + (val.month / 10.0)
                         
                         val_str = str(val).strip()
                         
-                        # 1. Jika Pembersih Teks Aktif
+                        # Jika Pembersih Teks Aktif
                         if mode_pembersih:
                             # Hapus semua karakter kecuali angka, titik, koma, dan minus
                             val_str = re.sub(r'[^0-9.,-]', '', val_str)
                             if not val_str: return None
                         
-                        # 2. Aturan Desimal
+                        # Aturan Desimal
                         if desimal_pilihan == "Koma (,)":
-                            # Titik dianggap ribuan (hapus), Koma diubah jadi desimal
                             val_str = val_str.replace('.', '').replace(',', '.')
-                        else: # Titik (.)
-                            # Koma dianggap ribuan (hapus), Titik tetap desimal
+                        else: 
                             val_str = val_str.replace(',', '')
                             
                         try: return float(val_str)
                         except: return None
 
+                    # Terapkan pembersihan
                     for col in fitur_x:
                         df_model[col] = df_model[col].apply(lambda x: bersihkan_angka_kustom(x, format_desimal, aktifkan_pembersih))
                     
@@ -495,7 +532,7 @@ elif menu == "Unggah & Uji Data Anda":
                             st.plotly_chart(fig_roc_dyn, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah {e}")
+            st.error(f"Terjadi kesalahan teknis saat memproses struktur data. Detail masalah: {e}")
 
 # Footer
 st.sidebar.divider()
